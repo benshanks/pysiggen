@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, sys, re
 
 try:
     from setuptools import setup, Extension
@@ -41,6 +41,25 @@ if __name__ == "__main__":
         os.path.join("pysiggen", "_pysiggen.pyx"),
     ]
 
+    major, minor1, minor2, release, serial = sys.version_info
+    if major >= 3:
+        def rd(filename):
+            f = open(filename, encoding="utf-8")
+            r = f.read()
+            f.close()
+            return r
+    else:
+        def rd(filename):
+            f = open(filename)
+            r = f.read()
+            f.close()
+            return r
+
+    vre = re.compile("__version__ = \"(.*?)\"")
+    m = rd(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                    "pysiggen", "__init__.py"))
+    version = vre.findall(m)[0]
+
     ext = Extension(
         "pysiggen._pysiggen",
         sources=src,
@@ -58,6 +77,7 @@ if __name__ == "__main__":
 
 setup(
     name="pysiggen",
+    version=version,
     author="Ben Shanks",
     author_email="benjamin.shanks@gmail.com",
     packages=["pysiggen"],
