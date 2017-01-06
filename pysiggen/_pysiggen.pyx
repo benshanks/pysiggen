@@ -396,6 +396,8 @@ cdef class Siggen:
     return self.fSiggenData.xtal_temp
   def GetDimensions(self):
     return ( self.fSiggenData.xtal_radius, self.fSiggenData.xtal_length)
+  def GetTaperLength(self):
+    return self.fSiggenData.taper_length
 
   def FindDriftVelocity(self, float x, float y, float z):
     self.c_find_drift_velocity( x, y, z)
