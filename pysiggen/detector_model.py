@@ -120,22 +120,29 @@ class Detector:
       gradList = data['gradList']
 
     self.gradList = gradList
+    self.gradList = gradList
     self.pcLen = pcLen
     self.pcRad = pcRad
 
-    self.siggenInst.ReadEFieldsFromArray(efld_rArray, efld_zArray, wpArray )
+    if 'gradMultList' in data:
+        self.gradMultList = data['gradMultList']
+    else:
+        self.gradMultList = [1]
 
-    r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
-    z_space = np.arange(0, wpArray.shape[1]/10. , 0.1, dtype=np.dtype('f4'))
+    print "reading fields from array"
+    self.siggenInst.ReadEFieldsFromArray(efld_rArray, efld_zArray, wpArray)
 
-    self.wpArray = wpArray
-    self.efld_rArray = efld_rArray
-    self.efld_zArray = efld_zArray
+    # r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
+    # z_space = np.arange(0, wpArray.shape[1]/10. , 0.1, dtype=np.dtype('f4'))
 
-    self.efld_r_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList, ), efld_rArray, )
-    self.efld_z_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList,), efld_zArray,)
+    # self.wpArray = wpArray
+    # self.efld_rArray = efld_rArray
+    # self.efld_zArray = efld_zArray
 
-    (self.rr, self.zz) = np.meshgrid(r_space, z_space)
+    # self.efld_r_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList, ), efld_rArray, )
+    # self.efld_z_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList,), efld_zArray,)
+    #
+    # (self.rr, self.zz) = np.meshgrid(r_space, z_space)
 
   def SetFields(self, pcRad, pcLen, impurityGrad, method="full"):
     if method=="nearest":
@@ -169,8 +176,10 @@ class Detector:
 
 
   def SetFieldsGradIdx(self, gradIdx):
-      self.siggenInst.SetActiveEfld(gradIdx)
+      self.siggenInst.SetActiveEfld(gradIdx,0)
 
+  def SetFieldsGradMultIdx(self, gradIdx, multIdx):
+      self.siggenInst.SetActiveEfld(gradIdx,multIdx)
 
   def SetFieldsFullInterp(self, pcRad, pcLen, impurityGrad):
     self.pcRad = pcRad
@@ -420,8 +429,6 @@ class Detector:
     siggen_len = self.num_steps #+ self.zeroPadding
 
     switchpoint_ceil = switchpoint
-
-
 
     #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
     switchpoint_ceil= np.int( np.ceil(switchpoint) )
