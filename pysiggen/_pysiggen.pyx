@@ -115,7 +115,7 @@ cdef class Siggen:
     #   print "freeing whole wp"
     #   PyMem_Free(self.pWpot)
 
-    print "freeing ef...
+    print "freeing ef..."
     for grad_idx in range(self.number_eflds_zgrad):
       for mult_idx in range(self.number_eflds_radmult):
         for i in range(self.fSiggenData.rlen):
