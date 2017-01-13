@@ -10,7 +10,7 @@ from _pysiggen import Siggen
 #Does all the interfacing with siggen for you, stores/loads lookup tables, and does electronics shaping
 
 class Detector:
-  def __init__(self, siggen_config_file, temperature=0, timeStep=None, numSteps=None,):
+  def __init__(self, siggen_config_file, temperature=0, timeStep=None, numSteps=None, maxWfOutputLength=None):
 
     self.conf_file = siggen_config_file
 
@@ -18,16 +18,22 @@ class Detector:
       self.siggenInst = Siggen(siggen_config_file)
     else:
       self.siggenInst =  Siggen(siggen_config_file, timeStep, numSteps)
-      self.num_steps = np.int(numSteps)
-      self.time_step_size = timeStep
 
-      print "Time step size is %d" % self.time_step_size
-      print "There will be %d steps in output" % self.num_steps
+    self.time_step_size = self.siggenInst.GetCalculationTimeStep()
+    self.num_steps = np.int(self.siggenInst.GetOutputLength())
+    self.calc_length = np.int(self.siggenInst.GetCalculationLength())
+
+    if maxWfOutputLength is None:
+        self.wf_output_length = self.num_steps
+    else:
+        self.wf_output_length = np.int(maxWfOutputLength)
+
+    print "Time step size is %d" % self.time_step_size
+    print "There will be %d steps in output" % self.wf_output_length
 
     (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
     (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
     self.taper_length = self.siggenInst.GetTaperLength()
-
     print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
     print "Using model-based velocity numbers..."
@@ -64,11 +70,10 @@ class Detector:
     self.data_to_siggen_size_ratio = np.int(data_to_siggen_size_ratio)
 
     #Holders for wf simulation
-    self.calc_length = self.siggenInst.GetCalculationLength()
-
     self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
     self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
-    self.processed_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
+
+    self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFields(self, fieldFileName):
@@ -408,7 +413,7 @@ class Detector:
     if h_smoothing is not None:
       ndimage.filters.gaussian_filter1d(self.raw_siggen_data, h_smoothing/ratio, output=self.raw_siggen_data)
 
-    sim_wf = self.ProcessWaveform(self.raw_siggen_data, numSamples, scale, switchpoint)
+    sim_wf = self.ProcessWaveform(self.raw_siggen_data, scale, switchpoint, numSamples)
     return sim_wf
 
   def MakeRawSiggenWaveform(self, r,phi,z, charge):
@@ -424,30 +429,48 @@ class Detector:
     return self.raw_charge_data
 
 ########################################################################################################
-  def ProcessWaveform(self, siggen_wf, outputLength, scale, switchpoint):
+  def ProcessWaveform(self, siggen_wf, scale, switchpoint, outputLength):
     '''Use interpolation instead of rounding'''
-    siggen_len = self.num_steps #+ self.zeroPadding
 
-    switchpoint_ceil = switchpoint
+    siggen_len = self.num_steps #+ self.zeroPadding
+    siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
     #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
     switchpoint_ceil= np.int( np.ceil(switchpoint) )
-    samples_to_fill = (outputLength - switchpoint_ceil)
+
+    # print "siggen len output is %d" % siggen_len_output
+
+    pad_space = outputLength - siggen_len_output
+    # print "padspace minus switch %d" % (pad_space - switchpoint_ceil)
+
+    if pad_space - switchpoint_ceil  < 0 :
+        num_samples_to_fill = siggen_len_output - (switchpoint_ceil-pad_space)
+    else:
+        num_samples_to_fill = siggen_len_output - 1
+
     siggen_interp_fn = interpolate.interp1d(np.arange(self.num_steps ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
     siggen_start_idx = (switchpoint_ceil - switchpoint) * self.data_to_siggen_size_ratio
+    sampled_idxs = np.arange(num_samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
 
-    sampled_idxs = np.arange(samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
+    # print "switchpoint ceil is %d" % switchpoint_ceil
+    # print "siggen_start_idx is %d" % siggen_start_idx
+    # print  sampled_idxs
 
     self.processed_siggen_data.fill(0.)
 
     try:
-      self.processed_siggen_data[switchpoint_ceil:outputLength] = siggen_interp_fn(sampled_idxs)
+      self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = siggen_interp_fn(sampled_idxs)
+      self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = 1.
     except ValueError:
       print "Something goofy happened here during interp"
-      print outputLength
-      print siggen_wf.size
-      print sampled_idxs[-10:]
-      return None
+      print "siggen len output is %d (calculated is %d)" % (siggen_len_output, siggen_wf.size)
+      print "desired output length is %d" % outputLength
+      print "switchpoint is %d" % switchpoint
+      print "siggen start idx is %d" % siggen_start_idx
+      print "num samples to fill is %d" % num_samples_to_fill
+      print sampled_idxs
+      exit(0)
+    #   return None
 
     #filter for the damped oscillation
     self.processed_siggen_data[:outputLength]= signal.lfilter(self.num, self.den, self.processed_siggen_data[:outputLength])

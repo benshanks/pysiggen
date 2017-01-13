@@ -212,6 +212,10 @@ cdef class Siggen:
 
   def GetCalculationLength(self):
     return self.fSiggenData.time_steps_calc
+  def GetOutputLength(self):
+    return self.fSiggenData.ntsteps_out
+  def GetCalculationTimeStep(self):
+      return self.fSiggenData.step_time_calc
 
   cpdef set_time_step_length(self, float timeStepLength):
     if timeStepLength < self.fSiggenData.step_time_calc:
