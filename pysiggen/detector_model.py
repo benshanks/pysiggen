@@ -473,13 +473,12 @@ class Detector:
     #   return None
 
     #filter for the damped oscillation
-    self.processed_siggen_data[:outputLength]= signal.lfilter(self.num, self.den, self.processed_siggen_data[:outputLength])
+    self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter(self.num, self.den, self.processed_siggen_data[switchpoint_ceil-1:outputLength])
 
     #filter for the exponential decay
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
-    self.processed_siggen_data[:outputLength]= signal.lfilter([1., -1], [1., -self.rc1_for_tf], self.processed_siggen_data[:outputLength])
-    self.processed_siggen_data[:outputLength]= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], self.processed_siggen_data[:outputLength])
-
+    self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter([1., -1], [1., -self.rc1_for_tf], self.processed_siggen_data[switchpoint_ceil-1:outputLength])
+    self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], self.processed_siggen_data[switchpoint_ceil-1:outputLength])
 
     smax = np.amax(self.processed_siggen_data[:outputLength])
 
