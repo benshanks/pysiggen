@@ -20,10 +20,11 @@ cdef class Siggen:
   cdef csiggen.velocity_lookup* fVelocityFileData #as read straight out of the drift velo file
   cdef csiggen.velocity_lookup* fVelocityTempData #temperature-adjuisted values for use in siggen
 
-  cdef csiggen.cyl_pt **** efld_ptr_arr
+  cdef csiggen.cyl_pt *** efld_ptr_arr
 
   cdef number_eflds_zgrad
   cdef number_eflds_radmult
+  cdef number_eflds
 
   cdef csiggen.cyl_pt** pEfld;
   cdef float** pWpot;
@@ -81,6 +82,7 @@ cdef class Siggen:
 
     self.number_eflds_zgrad = 0
     self.number_eflds_radmult = 1
+    self.number_eflds = 0
 
     #default params are reggiani
     csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
@@ -116,12 +118,10 @@ cdef class Siggen:
     #   PyMem_Free(self.pWpot)
 
     print "freeing ef..."
-    for grad_idx in range(self.number_eflds_zgrad):
-      for mult_idx in range(self.number_eflds_radmult):
+    for grad_idx in range(self.number_eflds):
         for i in range(self.fSiggenData.rlen):
-          PyMem_Free(self.efld_ptr_arr[grad_idx][mult_idx][i])
-        PyMem_Free(self.efld_ptr_arr[grad_idx][mult_idx])
-      PyMem_Free(self.efld_ptr_arr[grad_idx])
+          PyMem_Free(self.efld_ptr_arr[grad_idx][i])
+        PyMem_Free(self.efld_ptr_arr[grad_idx])
 
   cdef reinit_from_saved_state(self):
     #init the WP and E-fld
@@ -329,8 +329,10 @@ cdef class Siggen:
     else:
       self.number_eflds_radmult = 1
 
+    self.number_eflds = self.number_eflds_radmult * self.number_eflds_zgrad
+
   #   self.efld_ptr_arr = np.empty(number_eflds, dtype=np.obj)
-    self.malloc_efld_array(self.number_eflds_zgrad, self.number_eflds_radmult)
+    self.malloc_efld_array(self.number_eflds)
     # self.malloc_wp()
 
     print "Setting up field information.  May take a minute..."
@@ -349,33 +351,32 @@ cdef class Siggen:
         else:
           new_ef_r = efld_rArray[:,:,grad_idx, mult_idx]
           new_ef_z = efld_zArray[:,:,grad_idx, mult_idx]
+
+        index = self.number_eflds_zgrad * mult_idx + grad_idx
         for  (i) in range(self.fSiggenData.rlen):
             for (j) in range(self.fSiggenData.zlen):
-              self.efld_ptr_arr[grad_idx][mult_idx][i][j].r = new_ef_r[i,j]
-              self.efld_ptr_arr[grad_idx][mult_idx][i][j].phi = 0.;
-              self.efld_ptr_arr[grad_idx][mult_idx][i][j].z = new_ef_z[i,j]
+              self.efld_ptr_arr[index][i][j].r = new_ef_r[i,j]
+              self.efld_ptr_arr[index][i][j].phi = 0.;
+              self.efld_ptr_arr[index][i][j].z = new_ef_z[i,j]
 
 
   def SetActiveEfld(self, grad_idx, mult_idx):
-    self.fSiggenData.efld = self.efld_ptr_arr[grad_idx][mult_idx]
+    index = self.number_eflds_zgrad * mult_idx + grad_idx
+    self.fSiggenData.efld = self.efld_ptr_arr[index]
 
   def SetActiveWpot(self, np.ndarray[float, ndim=2, mode="c"] input not None):
     for  (i) in range(self.fSiggenData.rlen):
       self.pWpot[i] = &input[i,0]
     self.fSiggenData.wpot = self.pWpot
 
-  cdef malloc_efld_array(self, number_eflds_zgrad, number_eflds_radmult):
+  cdef malloc_efld_array(self, number_eflds, ):
     # cdef csiggen.cyl_pt *** efld_ptr_arr
-    self.efld_ptr_arr = <csiggen.cyl_pt ****> PyMem_Malloc(number_eflds_zgrad*sizeof(csiggen.cyl_pt**));
+    self.efld_ptr_arr = <csiggen.cyl_pt ***> PyMem_Malloc(number_eflds*sizeof(csiggen.cyl_pt**));
 
-    cdef csiggen.cyl_pt ** efld
-
-    for idx_grad in range(number_eflds_zgrad):
-      self.efld_ptr_arr[idx_grad] = <csiggen.cyl_pt ***> PyMem_Malloc(number_eflds_radmult*sizeof(csiggen.cyl_pt**));
-      for idx_mult in range(number_eflds_radmult):
-        self.efld_ptr_arr[idx_grad][idx_mult] = <csiggen.cyl_pt **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(csiggen.cyl_pt*));
-        for j in range(self.fSiggenData.rlen):
-            self.efld_ptr_arr[idx_grad][idx_mult][j] = <csiggen.cyl_pt *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(csiggen.cyl_pt));
+    for idx_grad in range(number_eflds):
+      self.efld_ptr_arr[idx_grad] = <csiggen.cyl_pt **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(csiggen.cyl_pt*));
+      for j in range(self.fSiggenData.rlen):
+          self.efld_ptr_arr[idx_grad][j] = <csiggen.cyl_pt *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(csiggen.cyl_pt));
 
   # cdef malloc_wp(self):
   #   print "mallocing wp"

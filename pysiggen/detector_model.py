@@ -140,9 +140,9 @@ class Detector:
     # r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
     # z_space = np.arange(0, wpArray.shape[1]/10. , 0.1, dtype=np.dtype('f4'))
 
-    # self.wpArray = wpArray
-    # self.efld_rArray = efld_rArray
-    # self.efld_zArray = efld_zArray
+    self.wpArray = wpArray
+    self.efld_rArray = efld_rArray
+    self.efld_zArray = efld_zArray
 
     # self.efld_r_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList, ), efld_rArray, )
     # self.efld_z_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList,), efld_zArray,)
