@@ -381,9 +381,11 @@ class Detector:
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
-
-#    print "ratio is %d" % ratio
-
+    if ratio != 1:
+        print "Hardcoded values are set up which can't handle this ratio of calc signal length to num steps."
+        print "(which is to say, everything on the calc side should be in 1 ns steps)"
+        exit(0)
+    
     hole_wf = self.MakeRawSiggenWaveform(r, phi, z, 1)
     if hole_wf is None:
       return None
