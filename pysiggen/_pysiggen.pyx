@@ -40,11 +40,9 @@ cdef class Siggen:
 
     if savedConfig is not None:
       self.SetConfiguration(savedConfig)
-      self.reinit_from_saved_state()
-
+      # self.reinit_from_saved_state()
       self.set_velocity_type(1)
-      csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
-
+      # csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
     else:
 
       csiggen.read_config(conffilename, &self.fSiggenData);

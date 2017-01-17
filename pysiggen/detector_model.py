@@ -10,70 +10,73 @@ from _pysiggen import Siggen
 #Does all the interfacing with siggen for you, stores/loads lookup tables, and does electronics shaping
 
 class Detector:
-  def __init__(self, siggen_config_file, temperature=0, timeStep=None, numSteps=None, maxWfOutputLength=None):
+  def __init__(self, siggen_config_file=None, temperature=0, timeStep=None, numSteps=None, maxWfOutputLength=None, setup_dict=None):
 
-    self.conf_file = siggen_config_file
+    if setup_dict is not None:
+        self.__setstate__(setup_dict)
+    elif siggen_config_file is not None:
+        self.conf_file = siggen_config_file
 
-    if timeStep is None or numSteps is None:
-      self.siggenInst = Siggen(siggen_config_file)
-    else:
-      self.siggenInst =  Siggen(siggen_config_file, timeStep, numSteps)
+        if timeStep is None or numSteps is None:
+          self.siggenInst = Siggen(siggen_config_file)
+        else:
+          self.siggenInst =  Siggen(siggen_config_file, timeStep, numSteps)
 
-    self.time_step_size = self.siggenInst.GetCalculationTimeStep()
-    self.num_steps = np.int(self.siggenInst.GetOutputLength())
-    self.calc_length = np.int(self.siggenInst.GetCalculationLength())
+        self.time_step_size = self.siggenInst.GetCalculationTimeStep()
+        self.num_steps = np.int(self.siggenInst.GetOutputLength())
+        self.calc_length = np.int(self.siggenInst.GetCalculationLength())
 
-    if maxWfOutputLength is None:
-        self.wf_output_length = self.num_steps
-    else:
-        self.wf_output_length = np.int(maxWfOutputLength)
+        if maxWfOutputLength is None:
+            self.wf_output_length = self.num_steps
+        else:
+            self.wf_output_length = np.int(maxWfOutputLength)
 
-    print "Time step size is %d" % self.time_step_size
-    print "There will be %d steps in output" % self.wf_output_length
+        print "Time step size is %d" % self.time_step_size
+        print "There will be %d steps in output" % self.wf_output_length
 
-    (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
-    (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
-    self.taper_length = self.siggenInst.GetTaperLength()
-    print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
+        (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
+        (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
+        self.taper_length = self.siggenInst.GetTaperLength()
+        print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
-    print "Using model-based velocity numbers..."
-    self.siggenInst.set_velocity_type(1)
 
-    if temperature > 0:
-      self.SetTemperature(temperature)
+        print "Using model-based velocity numbers..."
+        self.siggenInst.set_velocity_type(1)
 
-    #stuff for field interp
-    self.wp_function = None
-    self.efld_r_function = None
-    self.efld_z_function = None
-    self.rr = None
-    self.zz = None
-    self.wp_pp = None
+        #stuff for field interp
+        self.wp_function = None
+        self.efld_r_function = None
+        self.efld_z_function = None
+        self.rr = None
+        self.zz = None
+        self.wp_pp = None
+        self.pcRadList = None
+        self.pcLenList = None
+        self.gradList = None
 
-    self.trapping_rc = None
+        self.trapping_rc = None
 
-    #stuff for waveform interpolation
-    #round here to fix floating point accuracy problem
-    data_to_siggen_size_ratio = np.around(10. / self.time_step_size,3)
-    if not data_to_siggen_size_ratio.is_integer():
-      print "Error: siggen step size must evenly divide into 10 ns digitization period (ratio is %f)" % data_to_siggen_size_ratio
-      exit(0)
-    elif data_to_siggen_size_ratio < 10:
-      round_places = 0
-    elif data_to_siggen_size_ratio < 100:
-      round_places = 1
-    elif data_to_siggen_size_ratio < 1000:
-      round_places = 2
-    else:
-      print "Error: Ben was too lazy to code in support for resolution this high"
-      exit(0)
-    self.data_to_siggen_size_ratio = np.int(data_to_siggen_size_ratio)
+        #stuff for waveform interpolation
+        #round here to fix floating point accuracy problem
+        data_to_siggen_size_ratio = np.around(10. / self.time_step_size,3)
+        if not data_to_siggen_size_ratio.is_integer():
+          print "Error: siggen step size must evenly divide into 10 ns digitization period (ratio is %f)" % data_to_siggen_size_ratio
+          exit(0)
+        elif data_to_siggen_size_ratio < 10:
+          round_places = 0
+        elif data_to_siggen_size_ratio < 100:
+          round_places = 1
+        elif data_to_siggen_size_ratio < 1000:
+          round_places = 2
+        else:
+          print "Error: Ben was too lazy to code in support for resolution this high"
+          exit(0)
+        self.data_to_siggen_size_ratio = np.int(data_to_siggen_size_ratio)
 
-    #Holders for wf simulation
-    self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
-    self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
-
-    self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
+        #Holders for wf simulation
+        self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
+        self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
+        self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFields(self, fieldFileName):
@@ -134,7 +137,6 @@ class Detector:
     else:
         self.gradMultList = [1]
 
-    print "reading fields from array"
     self.siggenInst.ReadEFieldsFromArray(efld_rArray, efld_zArray, wpArray)
 
     # r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
@@ -303,9 +305,11 @@ class Detector:
 
 ###########################################################################################################################
   def ReinitializeDetector(self):
+    self.LoadFieldsGrad(self.fieldFileName, pcLen=self.pcLen, pcRad=self.pcRad, )
+
 #    self.SetTemperature(self.temperature)
 #    self.SetFields(self.pcRad, self.pcLen, self.impurityGrad)
-    self.SetFieldsGradInterp( self.impurityGrad)
+    # self.SetFieldsGradInterp( self.impurityGrad)
 ###########################################################################################################################
   def SetTemperature(self, h_temp, e_temp=0):
     self.temperature = h_temp
@@ -396,7 +400,7 @@ class Detector:
     #charge trapping (for holes only), currently not being used
     if self.trapping_rc is not None:
       trapping_rc = self.trapping_rc * 1E-6
-      trapping_rc_exp = np.exp(-1./1E8/trapping_rc)
+      trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
       self.raw_siggen_data= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data)
       holes_collected_idx = np.argmax(self.raw_siggen_data)
       self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx]
@@ -521,12 +525,13 @@ class Detector:
     # reopen it and read from it until the line count is restored.
 
     self.siggenInst =  Siggen(savedConfig=self.siggenSetup)
-
+    self.siggenInst.set_velocity_type(1)
     self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
     self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
-    self.LoadFields(self.fieldFileName)
-    self.siggenInst.set_velocity_type(1)
-    self.siggenInst.ReadEFieldsFromArray(self.efld_rArray, self.efld_zArray, self.wpArray )
+    self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
+
+    # self.LoadFields(self.fieldFileName)
+
 
   def ReflectPoint(self, r,z):
     #algorithm shamelessly ripped from answer on http://stackoverflow.com/questions/3306838/algorithm-for-reflecting-a-point-across-a-line
