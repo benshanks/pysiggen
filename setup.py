@@ -36,7 +36,7 @@ if __name__ == "__main__":
         "read_config.c",
 #            "siggen_helpers.c",
     ]]
-    
+
     src += [
         os.path.join("pysiggen", "_pysiggen.pyx"),
     ]
@@ -81,5 +81,8 @@ setup(
     author="Ben Shanks",
     author_email="benjamin.shanks@gmail.com",
     packages=["pysiggen"],
+    install_requires=[
+          'numpy', 'scipy', 'matplotlib', 'cython'
+      ],
     ext_modules=extensions,
 )
