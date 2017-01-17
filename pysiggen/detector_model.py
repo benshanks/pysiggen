@@ -464,7 +464,7 @@ class Detector:
 
     try:
       self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = siggen_interp_fn(sampled_idxs)
-      self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = 1.
+      self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)-1]
     except ValueError:
       print "Something goofy happened here during interp"
       print "siggen len output is %d (calculated is %d)" % (siggen_len_output, siggen_wf.size)
@@ -488,9 +488,10 @@ class Detector:
 
     if smax == 0:
       return None
-
-    self.processed_siggen_data[:outputLength] /= smax
-    self.processed_siggen_data[:outputLength] *= scale
+      
+    if scale is not None:
+        self.processed_siggen_data[:outputLength] /= smax
+        self.processed_siggen_data[:outputLength] *= scale
 
     return self.processed_siggen_data[:outputLength]
 ########################################################################################################
