@@ -117,7 +117,7 @@ class Detector:
 
     (self.rr, self.zz) = np.meshgrid(r_space, z_space)
 ###########################################################################################################################
-  def LoadFieldsGrad(self, fieldFileName, pcLen, pcRad):
+  def LoadFieldsGrad(self, fieldFileName, pcLen=None, pcRad=None):
     self.fieldFileName = fieldFileName
 
     with np.load(fieldFileName) as data:
@@ -126,8 +126,11 @@ class Detector:
       efld_rArray = data['efld_rArray']
       efld_zArray = data['efld_zArray']
       gradList = data['gradList']
+      if pcLen is  None:
+          pcLen = data['pcLen']
+      if pcRad is  None:
+          pcRad = data['pcRad']
 
-    self.gradList = gradList
     self.gradList = gradList
     self.pcLen = pcLen
     self.pcRad = pcRad
@@ -385,7 +388,7 @@ class Detector:
         print "Hardcoded values are set up which can't handle this ratio of calc signal length to num steps."
         print "(which is to say, everything on the calc side should be in 1 ns steps)"
         exit(0)
-    
+
     hole_wf = self.MakeRawSiggenWaveform(r, phi, z, 1)
     if hole_wf is None:
       return None
