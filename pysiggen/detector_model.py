@@ -32,6 +32,7 @@ class Detector:
             self.wf_output_length = np.int(maxWfOutputLength)
 
         print "Time step size is %d" % self.time_step_size
+        print "There will be %d steps calculated" % self.calc_length
         print "There will be %d steps in output" % self.wf_output_length
 
         (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
@@ -402,11 +403,12 @@ class Detector:
 
     self.raw_siggen_data += hole_wf[::ratio]
 
-    #charge trapping (for holes only), currently not being used
+    #charge trapping (for holes only)
     if self.trapping_rc is not None:
+
       trapping_rc = self.trapping_rc * 1E-6
       trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
-      holes_collected_idx = np.argmax(self.raw_siggen_data)
+      holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
       self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
       self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
 
