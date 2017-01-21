@@ -381,7 +381,7 @@ class Detector:
     return self.raw_siggen_data
 
 ###########################################################################################################################
-  def MakeSimWaveform(self, r,phi,z,scale, switchpoint,  numSamples, h_smoothing = None):
+  def MakeSimWaveform(self, r,phi,z,scale, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0"):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -424,7 +424,10 @@ class Detector:
     if h_smoothing is not None:
       ndimage.filters.gaussian_filter1d(self.raw_siggen_data, h_smoothing/ratio, output=self.raw_siggen_data)
 
-    sim_wf = self.ProcessWaveform(self.raw_siggen_data, scale, switchpoint, numSamples)
+    if alignPoint == "t0":
+        sim_wf = self.ProcessWaveform(self.raw_siggen_data, scale, switchpoint, numSamples)
+    elif alignPoint == "max":
+        sim_wf = self.ProcessWaveformByMax( self.raw_siggen_data, scale, switchpoint, numSamples)
     return sim_wf
 
   def MakeRawSiggenWaveform(self, r,phi,z, charge):
@@ -438,6 +441,56 @@ class Detector:
       return None
 
     return self.raw_charge_data
+
+########################################################################################################
+  def ProcessWaveformByMax(self, siggen_wf, scale, align_point, outputLength):
+    siggen_len = self.num_steps #+ self.zeroPadding
+    siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
+
+    temp_wf = np.zeros( self.wf_output_length)
+    temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
+    temp_wf[siggen_len_output::] =  temp_wf[siggen_len_output-1]
+
+    #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton, apply the transfer function
+    temp_wf= signal.lfilter(self.num, self.den, temp_wf)
+
+    #filter for the exponential decay
+    rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
+    temp_wf= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf)
+    temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
+
+    smax = np.amax(temp_wf)
+
+    if smax == 0:
+      return None
+
+    if scale is not None:
+        temp_wf /= smax
+        temp_wf *= scale
+
+    #find the max of the filtered wf
+    max_idx = np.argmax(temp_wf)
+
+    align_point_ceil = np.int( np.ceil(align_point) )
+    offset = align_point_ceil - align_point
+    max_num_samples_to_fill = len(temp_wf) - 1
+    start_idx = align_point_ceil - max_idx
+    if start_idx <0:
+        return None
+
+    num_samples_to_fill = max_num_samples_to_fill - start_idx
+    siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
+
+    sampled_idxs = np.arange(num_samples_to_fill) + offset
+
+    self.processed_siggen_data.fill(0.)
+    start_idx = align_point_ceil - max_idx
+    self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] =   siggen_interp_fn(sampled_idxs)
+
+
+
+    return self.processed_siggen_data[:outputLength]
+
 
 ########################################################################################################
   def ProcessWaveform(self, siggen_wf, scale, switchpoint, outputLength):
