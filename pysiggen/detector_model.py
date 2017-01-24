@@ -477,6 +477,10 @@ class Detector:
     #find the max of the filtered wf... which sucks because now its 10ns sampled.  lets do a spline interp
     max_idx = np.argmax(temp_wf)
     interp_length = 2
+
+    if max_idx <= interp_length or max_idx >= (len(temp_wf) - interp_length):
+        return None
+
     f2 = interpolate.interp1d( np.arange(max_idx-interp_length, max_idx+interp_length+1), temp_wf[max_idx-interp_length:max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
     interp_idxs = np.linspace(max_idx-1,max_idx+1, 101)
     interp = f2(interp_idxs)
