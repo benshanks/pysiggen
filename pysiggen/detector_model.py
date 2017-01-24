@@ -323,9 +323,17 @@ class Detector:
 
     self.siggenInst.SetTemperature(h_temp, e_temp)
 ###########################################################################################################################
-  def SetTransferFunction(self, b_over_a, c, d, RC1_in_us, RC2_in_us, rc1_frac):
-    self.num = [1., b_over_a, 0.]
+  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac):
+    #the (a + b)/(1 + 2c + d**2) sets the gain of the system
+    #we don't really care about the gain, so just set b, and keep the sum a+b
+    #at some arbitrary constant (100 here), and divide out the total gain later
+
+    num_gain = 100.
+    a = num_gain - b
+
+    self.num = [a, b, 0.]
     self.den = [1., 2.*c, d**2]
+    self.dc_gain = (a+b) / (1 + 2.*c + d**2)
 
     RC1= 1E-6 * (RC1_in_us)
     self.rc1_for_tf = np.exp(-1./1E8/RC1)
@@ -381,7 +389,7 @@ class Detector:
     return self.raw_siggen_data
 
 ###########################################################################################################################
-  def MakeSimWaveform(self, r,phi,z,scale, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0"):
+  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0"):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -421,13 +429,15 @@ class Detector:
 
     self.raw_siggen_data += electron_wf[::ratio]
 
+    self.raw_siggen_data *= energy
+
     if h_smoothing is not None:
       ndimage.filters.gaussian_filter1d(self.raw_siggen_data, h_smoothing/ratio, output=self.raw_siggen_data)
 
     if alignPoint == "t0":
-        sim_wf = self.ProcessWaveform(self.raw_siggen_data, scale, switchpoint, numSamples)
+        sim_wf = self.ProcessWaveform(self.raw_siggen_data, switchpoint, numSamples)
     elif alignPoint == "max":
-        sim_wf = self.ProcessWaveformByMax( self.raw_siggen_data, scale, switchpoint, numSamples)
+        sim_wf = self.ProcessWaveformByMax( self.raw_siggen_data, switchpoint, numSamples)
     return sim_wf
 
   def MakeRawSiggenWaveform(self, r,phi,z, charge):
@@ -443,7 +453,7 @@ class Detector:
     return self.raw_charge_data
 
 ########################################################################################################
-  def ProcessWaveformByMax(self, siggen_wf, scale, align_point, outputLength):
+  def ProcessWaveformByMax(self, siggen_wf, align_point, outputLength):
     siggen_len = self.num_steps #+ self.zeroPadding
     siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
@@ -458,15 +468,12 @@ class Detector:
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     temp_wf= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf)
     temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
+    temp_wf /= self.dc_gain
 
     smax = np.amax(temp_wf)
 
     if smax == 0:
       return None
-
-    if scale is not None:
-        temp_wf /= smax
-        temp_wf *= scale
 
     #find the max of the filtered wf
     max_idx = np.argmax(temp_wf)
@@ -493,7 +500,7 @@ class Detector:
 
 
 ########################################################################################################
-  def ProcessWaveform(self, siggen_wf, scale, switchpoint, outputLength):
+  def ProcessWaveform(self, siggen_wf,  switchpoint, outputLength):
     '''Use interpolation instead of rounding'''
 
     siggen_len = self.num_steps #+ self.zeroPadding
@@ -543,15 +550,11 @@ class Detector:
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter([1., -1], [1., -self.rc1_for_tf], self.processed_siggen_data[switchpoint_ceil-1:outputLength])
     self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], self.processed_siggen_data[switchpoint_ceil-1:outputLength])
+    self.processed_siggen_data /= self.dc_gain
 
     smax = np.amax(self.processed_siggen_data[:outputLength])
-
     if smax == 0:
       return None
-
-    if scale is not None:
-        self.processed_siggen_data[:outputLength] /= smax
-        self.processed_siggen_data[:outputLength] *= scale
 
     return self.processed_siggen_data[:outputLength]
 ########################################################################################################
