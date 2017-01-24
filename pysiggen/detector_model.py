@@ -492,20 +492,27 @@ class Detector:
         siggen_offset = 1 + siggen_offset
 
     align_point_ceil = np.int( np.ceil(align_point) )
-    max_num_samples_to_fill = len(temp_wf) - 1
 
     #TODO: is this right?
     start_idx = align_point_ceil - max_idx
     if start_idx <0:
         return None
 
-    num_samples_to_fill = max_num_samples_to_fill - start_idx
+    num_samples_to_fill = outputLength - start_idx
+
     siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
 
     offset = align_point_ceil - align_point
     sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
     self.processed_siggen_data.fill(0.)
-    self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] =   siggen_interp_fn(sampled_idxs)
+    try:
+        self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] =   siggen_interp_fn(sampled_idxs)
+    except ValueError:
+        print len(self.processed_siggen_data)
+        print start_idx
+        print num_samples_to_fill
+        print sampled_idxs
+        exit(0)
 
     return self.processed_siggen_data[:outputLength]
 
