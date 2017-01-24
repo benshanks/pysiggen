@@ -457,7 +457,7 @@ class Detector:
     siggen_len = self.num_steps #+ self.zeroPadding
     siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
-    temp_wf = np.zeros( self.wf_output_length)
+    temp_wf = np.zeros( self.wf_output_length+2)
     temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
     temp_wf[siggen_len_output::] =  temp_wf[siggen_len_output-1]
 
