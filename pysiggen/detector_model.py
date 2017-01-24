@@ -461,26 +461,36 @@ class Detector:
     temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
     temp_wf[siggen_len_output::] =  temp_wf[siggen_len_output-1]
 
-    #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton, apply the transfer function
+    # filter for the transfer function
     temp_wf= signal.lfilter(self.num, self.den, temp_wf)
+    temp_wf /= self.dc_gain
 
     #filter for the exponential decay
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     temp_wf= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf)
     temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
-    temp_wf /= self.dc_gain
 
     smax = np.amax(temp_wf)
-
     if smax == 0:
       return None
 
-    #find the max of the filtered wf
+    #find the max of the filtered wf... which sucks because now its 10ns sampled.  lets do a spline interp
     max_idx = np.argmax(temp_wf)
+    interp_length = 2
+    f2 = interpolate.interp1d( np.arange(max_idx-interp_length, max_idx+interp_length+1), temp_wf[max_idx-interp_length:max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
+    interp_idxs = np.linspace(max_idx-1,max_idx+1, 101)
+    interp = f2(interp_idxs)
+    sim_max_idx = interp_idxs[np.argmax(interp)] #this is the wf max, to nearest hundredth of a sample
+
+    siggen_offset = sim_max_idx - max_idx #how far in front of the max you should be sampling the siggen waveforms
+    if siggen_offset < 1:
+        max_idx -=1
+        siggen_offset = 1 + siggen_offset
 
     align_point_ceil = np.int( np.ceil(align_point) )
-    offset = align_point_ceil - align_point
     max_num_samples_to_fill = len(temp_wf) - 1
+
+    #TODO: is this right?
     start_idx = align_point_ceil - max_idx
     if start_idx <0:
         return None
@@ -488,13 +498,10 @@ class Detector:
     num_samples_to_fill = max_num_samples_to_fill - start_idx
     siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
 
-    sampled_idxs = np.arange(num_samples_to_fill) + offset
-
+    offset = align_point_ceil - align_point
+    sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
     self.processed_siggen_data.fill(0.)
-    start_idx = align_point_ceil - max_idx
     self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] =   siggen_interp_fn(sampled_idxs)
-
-
 
     return self.processed_siggen_data[:outputLength]
 
