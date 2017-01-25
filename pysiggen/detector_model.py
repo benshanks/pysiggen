@@ -328,7 +328,7 @@ class Detector:
     #we don't really care about the gain, so just set b, and keep the sum a+b
     #at some arbitrary constant (100 here), and divide out the total gain later
 
-    num_gain = 100.
+    num_gain = 1.
     a = num_gain - b
 
     self.num = [a, b, 0.]
