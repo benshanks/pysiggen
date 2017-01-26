@@ -56,6 +56,7 @@ class Detector:
         self.gradList = None
 
         self.trapping_rc = None
+        self.t0_padding = 0
 
         #stuff for waveform interpolation
         #round here to fix floating point accuracy problem
@@ -76,6 +77,7 @@ class Detector:
 
         #Holders for wf simulation
         self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
+        self.padded_siggen_data = np.zeros( self.num_steps + t0_padding, dtype=np.dtype('f4'), order="C" )
         self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
         self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
@@ -432,15 +434,18 @@ class Detector:
 
     self.raw_siggen_data += electron_wf[::ratio]
 
-    self.raw_siggen_data *= energy
+    self.padded_siggen_data.fill(0.)
+    self.padded_siggen_data[self.t0_padding:] = raw_siggen_data
+
+    self.padded_siggen_data *= energy
 
     if h_smoothing is not None:
-      ndimage.filters.gaussian_filter1d(self.raw_siggen_data, h_smoothing/ratio, output=self.raw_siggen_data)
+      ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing/ratio, output=self.padded_siggen_data)
 
     if alignPoint == "t0":
-        sim_wf = self.ProcessWaveform(self.raw_siggen_data, switchpoint, numSamples)
+        sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
     elif alignPoint == "max":
-        sim_wf = self.ProcessWaveformByMax( self.raw_siggen_data, switchpoint, numSamples)
+        sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples)
     return sim_wf
 
   def MakeRawSiggenWaveform(self, r,phi,z, charge):
