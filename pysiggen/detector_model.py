@@ -10,7 +10,7 @@ from _pysiggen import Siggen
 #Does all the interfacing with siggen for you, stores/loads lookup tables, and does electronics shaping
 
 class Detector:
-  def __init__(self, siggen_config_file=None, temperature=0, timeStep=None, numSteps=None, maxWfOutputLength=None, setup_dict=None):
+  def __init__(self, siggen_config_file=None, temperature=0, timeStep=None, numSteps=None, maxWfOutputLength=None, setup_dict=None, t0_padding=0):
 
     if setup_dict is not None:
         self.__setstate__(setup_dict)
@@ -56,7 +56,7 @@ class Detector:
         self.gradList = None
 
         self.trapping_rc = None
-        self.t0_padding = 0
+        self.t0_padding = t0_padding
 
         #stuff for waveform interpolation
         #round here to fix floating point accuracy problem
