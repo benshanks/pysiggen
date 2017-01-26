@@ -323,7 +323,7 @@ class Detector:
 
     self.siggenInst.SetTemperature(h_temp, e_temp)
 ###########################################################################################################################
-  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac):
+  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False):
     #the (a + b)/(1 + 2c + d**2) sets the gain of the system
     #we don't really care about the gain, so just set b, and keep the sum a+b
     #at some arbitrary constant (100 here), and divide out the total gain later
@@ -331,9 +331,13 @@ class Detector:
     num_gain = 1.
     a = num_gain - b
 
+    if not isDirect:
+        c = 2*c
+        d = d**2
+
     self.num = [a, b, 0.]
-    self.den = [1., 2.*c, d**2]
-    self.dc_gain = (a+b) / (1 + 2.*c + d**2)
+    self.den = [1., c, d]
+    self.dc_gain = (a+b) / (1 + c + d)
 
     RC1= 1E-6 * (RC1_in_us)
     self.rc1_for_tf = np.exp(-1./1E8/RC1)
@@ -342,7 +346,6 @@ class Detector:
     self.rc2_for_tf = np.exp(-1./1E8/RC2)
 
     self.rc1_frac = rc1_frac
-
 
   def SetTransferFunctionByTF(self, num, den):
     #should already be discrete params
