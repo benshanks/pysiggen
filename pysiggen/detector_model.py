@@ -435,7 +435,7 @@ class Detector:
     self.raw_siggen_data += electron_wf[::ratio]
 
     self.padded_siggen_data.fill(0.)
-    self.padded_siggen_data[self.t0_padding:] = raw_siggen_data
+    self.padded_siggen_data[self.t0_padding:] = self.raw_siggen_data[:]
 
     self.padded_siggen_data *= energy
 
