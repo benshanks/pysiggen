@@ -349,6 +349,7 @@ class Detector:
 
     self.rc1_frac = rc1_frac
 
+
   def SetTransferFunctionByTF(self, num, den):
     #should already be discrete params
     (self.num, self.den) = (num, den)
@@ -483,18 +484,19 @@ class Detector:
       return None
 
     #find the max of the filtered wf... which sucks because now its 10ns sampled.  lets do a spline interp
-    max_idx = np.argmax(temp_wf)
+    sim_max_idx = np.argmax(temp_wf)
     interp_length = 2
 
-    if max_idx <= interp_length or max_idx >= (len(temp_wf) - interp_length):
+    if sim_max_idx <= interp_length or sim_max_idx >= (len(temp_wf) - interp_length):
         return None
 
-    f2 = interpolate.interp1d( np.arange(max_idx-interp_length, max_idx+interp_length+1), temp_wf[max_idx-interp_length:max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
-    interp_idxs = np.linspace(max_idx-1,max_idx+1, 101)
-    interp = f2(interp_idxs)
-    sim_max_idx = interp_idxs[np.argmax(interp)] #this is the wf max, to nearest hundredth of a sample
+    signal_peak_fn = interpolate.interp1d( np.arange(sim_max_idx-interp_length, sim_max_idx+interp_length+1), temp_wf[sim_max_idx-interp_length:sim_max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
+    interp_idxs = np.linspace(sim_max_idx-1,sim_max_idx+1, 101)
+    interp = signal_peak_fn(interp_idxs)
+    interp_sim_max_idx = interp_idxs[np.argmax(interp)] #this is the wf max, to nearest hundredth of a sample
 
-    siggen_offset = sim_max_idx - max_idx #how far in front of the max you should be sampling the siggen waveforms
+    siggen_offset = interp_sim_max_idx - sim_max_idx #how far in front of the max you should be sampling the siggen waveforms
+    max_idx = sim_max_idx
     if siggen_offset < 1:
         max_idx -=1
         siggen_offset = 1 + siggen_offset
@@ -513,8 +515,18 @@ class Detector:
     offset = align_point_ceil - align_point
     sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
     self.processed_siggen_data.fill(0.)
+
+    sampled_idxs_max = np.where(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
+
+    coarse_vals =   siggen_interp_fn(sampled_idxs)
+    fine_idxs = np.argwhere(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
+    fine_vals = signal_peak_fn(sampled_idxs[fine_idxs])
+    coarse_vals[fine_idxs] = fine_vals
+
     try:
-        self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] =   siggen_interp_fn(sampled_idxs)
+
+        self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] = coarse_vals
+
     except ValueError:
         print len(self.processed_siggen_data)
         print start_idx
