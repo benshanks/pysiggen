@@ -77,7 +77,7 @@ class Detector:
 
         #Holders for wf simulation
         self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
-        self.padded_siggen_data = np.zeros( self.num_steps + t0_padding, dtype=np.dtype('f4'), order="C" )
+        self.padded_siggen_data = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
         self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
         self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
