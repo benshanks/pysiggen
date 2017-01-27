@@ -505,8 +505,6 @@ class Detector:
 
     #TODO: is this right?
     start_idx = align_point_ceil - max_idx
-    if start_idx <0:
-        return None
 
     num_samples_to_fill = outputLength - start_idx
 
@@ -518,6 +516,10 @@ class Detector:
         sampled_idxs = np.insert(sampled_idxs,  0, sampled_idxs[0]-1)
         start_idx -=1
         num_samples_to_fill +=1
+
+    if start_idx <0:
+        return None
+
 
     self.processed_siggen_data.fill(0.)
 
