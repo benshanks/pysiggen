@@ -514,6 +514,12 @@ class Detector:
 
     offset = align_point_ceil - align_point
     sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
+    if sampled_idxs[0] > 1:
+        sampled_idxs = np.insert(sampled_idxs,  0, sampled_idxs[0]-1)
+        start_idx -=1
+        num_samples_to_fill +=1
+
+    print sampled_idxs
     self.processed_siggen_data.fill(0.)
 
     sampled_idxs_max = np.where(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
