@@ -519,7 +519,6 @@ class Detector:
         start_idx -=1
         num_samples_to_fill +=1
 
-    print sampled_idxs
     self.processed_siggen_data.fill(0.)
 
     sampled_idxs_max = np.where(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
