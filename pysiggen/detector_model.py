@@ -395,7 +395,7 @@ class Detector:
     return self.raw_siggen_data
 
 ###########################################################################################################################
-  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0"):
+  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0", trapType="holesOnly"):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -418,13 +418,12 @@ class Detector:
     self.raw_siggen_data += hole_wf[::ratio]
 
     #charge trapping (for holes only)
-    if self.trapping_rc is not None:
-
-      trapping_rc = self.trapping_rc * 1E-6
-      trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
-      holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
-      self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
-      self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
+    if trapType == "holesOnly" and self.trapping_rc is not None::
+        trapping_rc = self.trapping_rc * 1E-6
+        trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
+        holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
+        self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
+        self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
 
     electron_wf = self.MakeRawSiggenWaveform(r, phi, z, -1)
     if electron_wf is  None:
@@ -434,6 +433,14 @@ class Detector:
 #      ndimage.filters.gaussian_filter1d(electron_wf, h_smoothing, output=electron_wf)
 
     self.raw_siggen_data += electron_wf[::ratio]
+
+    if trapType == "fullSignal" and self.trapping_rc is not None::
+        trapping_rc = self.trapping_rc * 1E-6
+        trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
+        holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
+        self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
+        self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
+
 
     self.padded_siggen_data.fill(0.)
     self.padded_siggen_data[self.t0_padding:] = self.raw_siggen_data[:]
