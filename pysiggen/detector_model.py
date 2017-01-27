@@ -418,7 +418,7 @@ class Detector:
     self.raw_siggen_data += hole_wf[::ratio]
 
     #charge trapping (for holes only)
-    if trapType == "holesOnly" and self.trapping_rc is not None::
+    if trapType == "holesOnly" and self.trapping_rc is not None:
         trapping_rc = self.trapping_rc * 1E-6
         trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
         holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
@@ -434,7 +434,7 @@ class Detector:
 
     self.raw_siggen_data += electron_wf[::ratio]
 
-    if trapType == "fullSignal" and self.trapping_rc is not None::
+    if trapType == "fullSignal" and self.trapping_rc is not None:
         trapping_rc = self.trapping_rc * 1E-6
         trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
         holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
