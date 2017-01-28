@@ -325,7 +325,7 @@ class Detector:
 
     self.siggenInst.SetTemperature(h_temp, e_temp)
 ###########################################################################################################################
-  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False, isOld=False):
+  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False, isOld=False, num_gain  = 1.):
     #the (a + b)/(1 + 2c + d**2) sets the gain of the system
     #we don't really care about the gain, so just set b, and keep the sum a+b
     #at some arbitrary constant (100 here), and divide out the total gain later
@@ -333,7 +333,6 @@ class Detector:
     if isOld:
         a= 1
     else:
-        num_gain = 1.
         a = num_gain - b
 
     if not isDirect:
