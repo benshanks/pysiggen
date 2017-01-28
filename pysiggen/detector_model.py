@@ -325,13 +325,16 @@ class Detector:
 
     self.siggenInst.SetTemperature(h_temp, e_temp)
 ###########################################################################################################################
-  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False):
+  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False, isOld=False):
     #the (a + b)/(1 + 2c + d**2) sets the gain of the system
     #we don't really care about the gain, so just set b, and keep the sum a+b
     #at some arbitrary constant (100 here), and divide out the total gain later
 
-    num_gain = 1.
-    a = num_gain - b
+    if isOld:
+        a= 1
+    else:
+        num_gain = 1.
+        a = num_gain - b
 
     if not isDirect:
         c = 2*c
@@ -348,6 +351,7 @@ class Detector:
     self.rc2_for_tf = np.exp(-1./1E8/RC2)
 
     self.rc1_frac = rc1_frac
+
 
 
   def SetTransferFunctionByTF(self, num, den):
@@ -555,7 +559,7 @@ class Detector:
   def ProcessWaveform(self, siggen_wf,  switchpoint, outputLength):
     '''Use interpolation instead of rounding'''
 
-    siggen_len = self.num_steps #+ self.zeroPadding
+    siggen_len = self.num_steps + self.t0_padding
     siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
     #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
@@ -571,7 +575,7 @@ class Detector:
     else:
         num_samples_to_fill = siggen_len_output - 1
 
-    siggen_interp_fn = interpolate.interp1d(np.arange(self.num_steps ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
+    siggen_interp_fn = interpolate.interp1d(np.arange(siggen_len ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
     siggen_start_idx = (switchpoint_ceil - switchpoint) * self.data_to_siggen_size_ratio
     sampled_idxs = np.arange(num_samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
 
