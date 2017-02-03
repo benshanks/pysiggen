@@ -351,6 +351,10 @@ class Detector:
 
     self.rc1_frac = rc1_frac
 
+    #rc integration for gretina low-pass filter (-3dB at 50 MHz)
+    rc_int = 2 * 49.9 * 33E-12
+    self.rc_int_exp = np.exp(-1./1E8/rc_int)
+    self.rc_int_gain = 1./ (1-self.rc_int_exp)
 
 
   def SetTransferFunctionByTF(self, num, den):
@@ -451,6 +455,7 @@ class Detector:
     self.padded_siggen_data *= energy
 
     if h_smoothing is not None:
+      h_smoothing = np.float(h_smoothing)/ratio
       ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing/ratio, output=self.padded_siggen_data)
 
     if alignPoint == "t0":
@@ -488,6 +493,10 @@ class Detector:
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     temp_wf= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf)
     temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
+
+    #filter for low-pass filter on gretina card
+    temp_wf= signal.lfilter([1,0], [1,-self.rc_int_exp], temp_wf)
+    temp_wf /= self.rc_int_gain
 
     smax = np.amax(temp_wf)
     if smax == 0:
