@@ -660,6 +660,16 @@ class Detector:
     self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
     self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
+    self.wp_function = None
+    self.efld_r_function = None
+    self.efld_z_function = None
+    self.rr = None
+    self.zz = None
+    self.wp_pp = None
+    # self.pcRadList = None
+    # self.pcLenList = None
+    # self.gradList = None
+
     # self.LoadFields(self.fieldFileName)
 
 
