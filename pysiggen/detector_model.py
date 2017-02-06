@@ -666,9 +666,9 @@ class Detector:
     self.rr = None
     self.zz = None
     self.wp_pp = None
-    # self.pcRadList = None
-    # self.pcLenList = None
-    # self.gradList = None
+    self.pcRadList = None
+    self.pcLenList = None
+    self.gradList = None
 
     # self.LoadFields(self.fieldFileName)
 
