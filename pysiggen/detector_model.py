@@ -31,17 +31,17 @@ class Detector:
         else:
             self.wf_output_length = np.int(maxWfOutputLength)
 
-        print "Time step size is %d" % self.time_step_size
-        print "There will be %d steps calculated" % self.calc_length
-        print "There will be %d steps in output" % self.wf_output_length
+        # print "Time step size is %d" % self.time_step_size
+        # print "There will be %d steps calculated" % self.calc_length
+        # print "There will be %d steps in output" % self.wf_output_length
 
         (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
         (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
         self.taper_length = self.siggenInst.GetTaperLength()
-        print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
+        # print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
 
-        print "Using model-based velocity numbers..."
+        # print "Using model-based velocity numbers..."
         self.siggenInst.set_velocity_type(1)
 
         #stuff for field interp
