@@ -402,6 +402,26 @@ class Detector:
     return self.raw_siggen_data
 
 ###########################################################################################################################
+  def MakeRawSiggenWaveform(self, r,phi,z, charge, output_array=None):
+    #Has CALCULATION, not OUTPUT, step length (ie, usually 1ns instead of 10ns binning)
+
+    if output_array is None:
+        output_array = self.raw_charge_data
+    else:
+        if len(output_array) != self.calc_length:
+            print "output array must be length %d (the current siggen calc length setting)" % self.calc_length
+            exit(0)
+
+    x = r * np.sin(phi)
+    y = r * np.cos(phi)
+    output_array.fill(0.)
+
+    calcFlag = self.siggenInst.MakeSignal(x, y, z, output_array, charge);
+    if calcFlag == -1:
+      return None
+
+    return output_array
+###########################################################################################################################
   def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
 
     self.raw_siggen_data.fill(0.)
@@ -415,67 +435,55 @@ class Detector:
     if hole_wf is None:
       return None
 
-#    if h_smoothing is not None:
-#      ndimage.filters.gaussian_filter1d(hole_wf, h_smoothing, output=hole_wf)
-
-#    #currently just correct cloud size for holes
-#    if cloud_size > 0:
-#      self.siggenInst.ChargeCloudCorrect(hole_wf, cloud_size)
-
-    self.raw_siggen_data += hole_wf[::ratio]
-
-    #charge trapping (for holes only)
-    if trapType == "holesOnly" and self.trapping_rc is not None:
-        trapping_rc = self.trapping_rc * 1E-6
-        trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
-        holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
-        self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
-        self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
+    #this is a comical mess of memory management
+    self.raw_siggen_data.fill(0)
+    self.raw_siggen_data[:] = hole_wf[:]
 
     electron_wf = self.MakeRawSiggenWaveform(r, phi, z, -1)
     if electron_wf is  None:
       return None
 
-#    if h_smoothing is not None:
-#      ndimage.filters.gaussian_filter1d(electron_wf, h_smoothing, output=electron_wf)
+    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, alignPoint, trapType, doMaxInterp)
+###########################################################################################################################
+  def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
+      #this is for parallel computing, to allow hole and electron wfs to be separately calculated
 
-    self.raw_siggen_data += electron_wf[::ratio]
-
-    if trapType == "fullSignal" and self.trapping_rc is not None:
-        trapping_rc = self.trapping_rc * 1E-6
-        trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
-        holes_collected_idx = np.argmax(self.raw_siggen_data) + 1
-        self.raw_siggen_data[:holes_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], self.raw_siggen_data[:holes_collected_idx])
-        self.raw_siggen_data[holes_collected_idx:] = self.raw_siggen_data[holes_collected_idx-1]
-
+    if hole_wf is None or electron_wf is None:
+      return None
 
     self.padded_siggen_data.fill(0.)
-    self.padded_siggen_data[self.t0_padding:] = self.raw_siggen_data[:]
+    self.padded_siggen_data[self.t0_padding:] += hole_wf[:]
 
+    #charge trapping (for holes only)
+    if trapType == "holesOnly" and self.trapping_rc is not None:
+        self.ApplyChargeTrapping(self.padded_siggen_data)
+
+    #add in the electron component
+    self.padded_siggen_data[self.t0_padding:] += electron_wf[:]
+
+    #charge trapping (holes and electrons)
+    if trapType == "fullSignal" and self.trapping_rc is not None:
+        self.ApplyChargeTrapping(self.padded_siggen_data)
+
+    #scale wf for energy
     self.padded_siggen_data *= energy
 
+    #gaussian smoothing
     if h_smoothing is not None:
-      h_smoothing = np.float(h_smoothing)/ratio
-      ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing/ratio, output=self.padded_siggen_data)
+      ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing, output=self.padded_siggen_data)
 
     if alignPoint == "t0":
         sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
     elif alignPoint == "max":
         sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples, doMaxInterp=doMaxInterp)
     return sim_wf
-
-  def MakeRawSiggenWaveform(self, r,phi,z, charge):
-    #Has CALCULATION, not OUTPUT, step length (ie, usually 1ns instead of 10ns binning)
-    x = r * np.sin(phi)
-    y = r * np.cos(phi)
-    self.raw_charge_data.fill(0.)
-
-    calcFlag = self.siggenInst.MakeSignal(x, y, z, self.raw_charge_data, charge);
-    if calcFlag == -1:
-      return None
-
-    return self.raw_charge_data
-
+###########################################################################################################################
+  def ApplyChargeTrapping(self, wf):
+    trapping_rc = self.trapping_rc * 1E-6
+    trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
+    charges_collected_idx = np.argmax(wf) + 1
+    wf[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
+    wf[charges_collected_idx:] = wf[charges_collected_idx-1]
 ########################################################################################################
   def ProcessWaveformByMax(self, siggen_wf, align_point, outputLength, doMaxInterp=True):
     siggen_len = self.num_steps + self.t0_padding

@@ -115,7 +115,7 @@ cdef class Siggen:
     #   print "freeing whole wp"
     #   PyMem_Free(self.pWpot)
 
-    print "freeing ef..."
+    # print "freeing ef..."
     for grad_idx in range(self.number_eflds):
         for i in range(self.fSiggenData.rlen):
           PyMem_Free(self.efld_ptr_arr[grad_idx][i])
@@ -333,7 +333,7 @@ cdef class Siggen:
     self.malloc_efld_array(self.number_eflds)
     # self.malloc_wp()
 
-    print "Setting up field information.  May take a minute..."
+    # print "Setting up field information.  May take a minute..."
     self.SetActiveWpot(wpot_array)
 
     # for  (i) in range(self.fSiggenData.rlen):
