@@ -189,6 +189,7 @@ class Detector:
 
 
   def SetFieldsGradIdx(self, gradIdx):
+      gradIdx = np.int(gradIdx)
       self.siggenInst.SetActiveEfld(gradIdx,0)
 
   def SetFieldsGradMultIdx(self, gradIdx, multIdx):
