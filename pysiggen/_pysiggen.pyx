@@ -23,7 +23,7 @@ cdef class Siggen:
   cdef csiggen.cyl_pt *** efld_ptr_arr
 
   cdef number_eflds_zgrad
-  cdef number_eflds_radmult
+  cdef number_eflds_avg
   cdef number_eflds
 
   cdef csiggen.cyl_pt** pEfld;
@@ -79,7 +79,7 @@ cdef class Siggen:
     self.SetTemperature(self.fSiggenData.xtal_temp)
 
     self.number_eflds_zgrad = 0
-    self.number_eflds_radmult = 1
+    self.number_eflds_avg = 1
     self.number_eflds = 0
 
     #default params are reggiani
@@ -174,6 +174,9 @@ cdef class Siggen:
 
   def ChargeCloudCorrect(self, np.ndarray[float, ndim=1, mode="c"] input not None, charge_cloud_size):
     self.c_charge_cloud_correction(&input[0], charge_cloud_size)
+
+  def RunSiggenSetup(self):
+    csiggen.field_setup(&self.fSiggenData);
 
 
   @cython.boundscheck(False)
@@ -323,11 +326,11 @@ cdef class Siggen:
     dimensions = efld_rArray.ndim
     self.number_eflds_zgrad = efld_rArray.shape[2]
     if dimensions > 3:
-      self.number_eflds_radmult = efld_rArray.shape[3]
+      self.number_eflds_avg = efld_rArray.shape[3]
     else:
-      self.number_eflds_radmult = 1
+      self.number_eflds_avg = 1
 
-    self.number_eflds = self.number_eflds_radmult * self.number_eflds_zgrad
+    self.number_eflds = self.number_eflds_avg * self.number_eflds_zgrad
 
   #   self.efld_ptr_arr = np.empty(number_eflds, dtype=np.obj)
     self.malloc_efld_array(self.number_eflds)
@@ -342,7 +345,7 @@ cdef class Siggen:
     # self.fSiggenData.wpot = &self.wpot_array[0][0]
 
     for grad_idx in range(self.number_eflds_zgrad):
-      for mult_idx in range(self.number_eflds_radmult):
+      for mult_idx in range(self.number_eflds_avg):
         if dimensions == 3:
           new_ef_r = efld_rArray[:,:,grad_idx]
           new_ef_z = efld_zArray[:,:,grad_idx]

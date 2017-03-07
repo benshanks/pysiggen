@@ -54,6 +54,9 @@ class Detector:
         self.pcRadList = None
         self.pcLenList = None
         self.gradList = None
+        self.gradMultList = None
+        self.impAvgList = None
+
 
         self.trapping_rc = None
         self.t0_padding = t0_padding
@@ -143,6 +146,11 @@ class Detector:
     else:
         self.gradMultList = [1]
 
+    if 'impAvgList' in data:
+        self.impAvgList = data['impAvgList']
+    else:
+        self.impAvgList = None
+
     self.siggenInst.ReadEFieldsFromArray(efld_rArray, efld_zArray, wpArray)
 
     # r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
@@ -191,6 +199,11 @@ class Detector:
   def SetFieldsGradIdx(self, gradIdx):
       gradIdx = np.int(gradIdx)
       self.siggenInst.SetActiveEfld(gradIdx,0)
+
+  def SetFieldsGradAvgIdx(self, gradIdx, avgIdx):
+      gradIdx = np.int(gradIdx)
+      avgIdx = np.int(avgIdx)
+      self.siggenInst.SetActiveEfld(gradIdx,avgIdx)
 
   def SetFieldsGradMultIdx(self, gradIdx, multIdx):
       self.siggenInst.SetActiveEfld(gradIdx,multIdx)
