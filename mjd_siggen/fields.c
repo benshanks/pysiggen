@@ -715,7 +715,14 @@ static int find_hole_velo(float field, float theta, float phi, point* v_spher, M
 
     float v_rel = v_111 / v_100;
 
-    float k_0 = 9.2652 - 26.3467*v_rel + 29.6137*pow(v_rel,2) -12.3689 * pow(v_rel,3);
+    float k_0_0 =  setup->v_params->k0_0;
+    float k_0_1 =  setup->v_params->k0_1;
+    float k_0_2 =  setup->v_params->k0_2;
+    float k_0_3 =  setup->v_params->k0_3;
+
+    // float k_0 = 9.2652 - 26.3467*v_rel + 29.6137*pow(v_rel,2) -12.3689 * pow(v_rel,3);
+
+    float k_0 = k_0_0 + k_0_1*v_rel + k_0_2*pow(v_rel,2)  + k_0_3* pow(v_rel,3);
 
     float lambda_k0 = -0.01322 * k_0 + 0.41145*pow(k_0,2) - 0.23657 * pow(k_0,3) + 0.04077*pow(k_0,4);
     float omega_k0 = 0.006550*k_0 - 0.19946*pow(k_0,2) + 0.09859*pow(k_0,3) - 0.01559*pow(k_0,4);
@@ -740,4 +747,11 @@ void set_hole_params(float h_100_mu0, float h_100_beta, float h_100_e0, float h_
   setup->v_params->h_111_mu0 = h_111_mu0;
   setup->v_params->h_111_beta = h_111_beta;
   setup->v_params->h_111_e0 = h_111_e0;
+}
+
+void set_k0_params(float k0_0, float k0_1, float k0_2, float k0_3, MJD_Siggen_Setup *setup){
+setup->v_params->k0_0 = k0_0;
+setup->v_params->k0_1 = k0_1;
+setup->v_params->k0_2 = k0_2;
+setup->v_params->k0_3 = k0_3;
 }

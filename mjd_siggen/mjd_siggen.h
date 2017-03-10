@@ -39,7 +39,7 @@ struct velocity_lookup{
   float h100;
   float h110;
   float h111;
-  float ea; //coefficients for anisotropic drift 
+  float ea; //coefficients for anisotropic drift
   float eb;
   float ec;
   float ebp;
@@ -60,6 +60,10 @@ typedef struct {
   float h_111_mu0;
   float h_111_beta;
   float h_111_e0;
+  float k0_0;
+  float k0_1;
+  float k0_2;
+  float k0_3;
 } velocity_params;
 
 /* setup parameters data structure */
@@ -101,7 +105,7 @@ typedef struct {
   char field_name[256];       // potential/efield file name
   char wp_name[256];          // weighting potential file name
 
-  // signal calculation 
+  // signal calculation
   float xtal_temp;            // crystal temperature in Kelvin
   float preamp_tau;           // integration time constant for preamplifier, in ns
   int   time_steps_calc;      // number of time steps used in calculations

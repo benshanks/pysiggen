@@ -82,9 +82,9 @@ cdef class Siggen:
     self.number_eflds_avg = 1
     self.number_eflds = 0
 
-    #default params are reggiani
+    #default params are reggiani (from Bruyneel NIMA 2006)
     csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
-
+    csiggen.set_k0_params(9.2652, -26.3467, 29.6137, -12.3689 , &self.fSiggenData)
 
   def __dealloc__(self):
     if self.fSiggenData.dpath_e is not NULL:
@@ -239,6 +239,8 @@ cdef class Siggen:
 #      print "velo type is %d" % self.fSiggenData.velocity_type
       csiggen.set_hole_params(h_100_mu0, h_100_beta, h_100_e0, h_111_mu0, h_111_beta, h_111_e0, &self.fSiggenData)
 
+  cpdef set_k0_params(self, k0_0, k0_1, k0_2, k0_3):
+      csiggen.set_k0_params(k0_0, k0_1, k0_2, k0_3, &self.fSiggenData)
 
   cdef c_read_velocity_table(self):
     #read in the drift velocity table

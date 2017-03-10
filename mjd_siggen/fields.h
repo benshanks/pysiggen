@@ -1,7 +1,7 @@
 /* fields.h -- based on m3d2s.f by I-Yang Lee
  * Karin Lagergren
  *
- * This module handles the electric field and weighting potential and 
+ * This module handles the electric field and weighting potential and
  * calculates drift velocities
  */
 
@@ -9,8 +9,8 @@
 #define _FIELDS_H
 
 /* calculate anisotropic drift velocities? (vel. depends on angle between
-   el. field and crystal axis; otherwise the velocity will always be 
-   in the direction of the el. field 
+   el. field and crystal axis; otherwise the velocity will always be
+   in the direction of the el. field
 */
 #define DRIFT_VEL_ANISOTROPY 1
 
@@ -49,5 +49,6 @@ int read_fields(MJD_Siggen_Setup *setup);
 void set_temp(float temp, MJD_Siggen_Setup *setup);
 
 void set_hole_params(float h_100_mu0, float h_100_beta, float h_100_e0, float h_111_mu0, float h_111_beta, float h_111_e0, MJD_Siggen_Setup *setup);
+void set_k0_params(float k0_0, float k0_1, float k0_2, float k0_3, MJD_Siggen_Setup *setup);
 
 #endif /*#ifndef _FIELDS_H*/
