@@ -126,8 +126,17 @@ typedef struct {
   int   v_lookup_len;
   struct velocity_lookup *v_lookup;
   velocity_params* v_params;
-  cyl_pt **efld;
-  float  **wpot;
+
+  float *efld_r;
+  float *efld_z;
+  float *wpot;
+
+  float imp_grad;
+  float avg_imp;
+  float min_imp_grad;
+  float min_avg_imp;
+  float imp_grad_step;
+  float avg_imp_step;
 
   // data for calc_signal.c
   point *dpath_e, *dpath_h;      // electron and hole drift paths

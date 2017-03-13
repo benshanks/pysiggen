@@ -10,6 +10,9 @@ import cython
 cimport numpy as np
 cimport csiggen
 
+from numpy import float32
+from numpy cimport float32_t
+
 cdef extern from "siggen_helpers.c":
     int read_velocity_table(csiggen.velocity_lookup* v_lookup, csiggen.MJD_Siggen_Setup *setup)
     int temperature_modify_velocity_table(float e_temp, float h_temp, csiggen.velocity_lookup* v_lookup_saved,  csiggen.velocity_lookup* modified_v_lookup, csiggen.MJD_Siggen_Setup *setup)
@@ -20,18 +23,10 @@ cdef class Siggen:
   cdef csiggen.velocity_lookup* fVelocityFileData #as read straight out of the drift velo file
   cdef csiggen.velocity_lookup* fVelocityTempData #temperature-adjuisted values for use in siggen
 
-  cdef csiggen.cyl_pt *** efld_ptr_arr
-
-  cdef number_eflds_zgrad
-  cdef number_eflds_avg
-  cdef number_eflds
-
-  cdef csiggen.cyl_pt** pEfld;
-  cdef float** pWpot;
-
   #helper arrays for siggen calcs
   cdef float* sum
   cdef float* tmp
+
 
 #  cdef csiggen.point* pDpath_e
 #  cdef csiggen.point* pDpath_h
@@ -73,14 +68,10 @@ cdef class Siggen:
 
     self.sum = <float *> PyMem_Malloc(self.fSiggenData.time_steps_calc*sizeof(float));
     self.tmp = <float *> PyMem_Malloc(self.fSiggenData.time_steps_calc*sizeof(float));
-    self.pWpot = <float **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(float*));
 
     self.ReadVelocityTable()
     self.SetTemperature(self.fSiggenData.xtal_temp)
 
-    self.number_eflds_zgrad = 0
-    self.number_eflds_avg = 1
-    self.number_eflds = 0
 
     #default params are reggiani (from Bruyneel NIMA 2006)
     csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
@@ -97,46 +88,28 @@ cdef class Siggen:
       PyMem_Free(self.fVelocityFileData)
     if self.fVelocityTempData is not NULL:
       PyMem_Free(self.fVelocityTempData)
-    if self.pWpot is not NULL:
-      PyMem_Free(self.pWpot)
-    if self.pEfld is not NULL:
-      PyMem_Free(self.pEfld)
     if self.sum is not NULL:
       PyMem_Free(self.sum)
     if self.tmp is not NULL:
       PyMem_Free(self.tmp)
 
-    # print "freeing wp"
-    #TODO: leaking memory from the wp
-    # if self.pWpot is not NULL:
-    #   # for i in range(self.fSiggenData.rlen):
-    #   #   print "freeing number %d" % i
-    #   #   PyMem_Free(self.pWpot[i])
-    #   print "freeing whole wp"
-    #   PyMem_Free(self.pWpot)
 
-    # print "freeing ef..."
-    for grad_idx in range(self.number_eflds):
-        for i in range(self.fSiggenData.rlen):
-          PyMem_Free(self.efld_ptr_arr[grad_idx][i])
-        PyMem_Free(self.efld_ptr_arr[grad_idx])
-
-  cdef reinit_from_saved_state(self):
-    #init the WP and E-fld
-    cdef csiggen.cyl_pt **efld;
-    efld = <csiggen.cyl_pt **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(csiggen.cyl_pt*));
-    for i in range(self.fSiggenData.rlen):
-      efld[i] = <csiggen.cyl_pt *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(csiggen.cyl_pt));
-    self.fSiggenData.efld = efld;
-
-    cdef float** wpot;
-    wpot = <float **> malloc(self.fSiggenData.rlen*sizeof(float*));
-    for i in range(self.fSiggenData.rlen):
-      wpot[i] = <float *> malloc(self.fSiggenData.zlen*sizeof(float));
-    self.fSiggenData.wpot = wpot;
-
-    self.pEfld = efld;
-    self.pWpot = wpot;
+  # cdef reinit_from_saved_state(self):
+  #   #init the WP and E-fld
+  #   cdef csiggen.cyl_pt **efld;
+  #   efld = <csiggen.cyl_pt **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(csiggen.cyl_pt*));
+  #   for i in range(self.fSiggenData.rlen):
+  #     efld[i] = <csiggen.cyl_pt *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(csiggen.cyl_pt));
+  #   self.fSiggenData.efld = efld;
+  #
+  #   cdef float** wpot;
+  #   wpot = <float **> malloc(self.fSiggenData.rlen*sizeof(float*));
+  #   for i in range(self.fSiggenData.rlen):
+  #     wpot[i] = <float *> malloc(self.fSiggenData.zlen*sizeof(float));
+  #   self.fSiggenData.wpot = wpot;
+  #
+  #   self.pEfld = efld;
+  #   self.pWpot = wpot;
 
   cdef c_get_signal(self, float x, float y, float z, float* signal):
     print "Getting signal at (%0.2f, %0.2f, %0.2f)" % (x,y,z)
@@ -321,102 +294,57 @@ cdef class Siggen:
     self.fSiggenData.pc_radius = pcRad
     self.fSiggenData.pc_length = pcLen
 
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  def ReadEFieldsFromArray(self, efld_rArray, efld_zArray, wpot_array):
+  def SetGradParams(self, imp_grad_step, imp_grad_min, avg_imp_step, avg_imp_min):
+    self.fSiggenData.imp_grad_step = imp_grad_step
+    self.fSiggenData.min_imp_grad = imp_grad_min
+    self.fSiggenData.avg_imp_step = avg_imp_step
+    self.fSiggenData.min_avg_imp = avg_imp_min
 
-    dimensions = efld_rArray.ndim
-    self.number_eflds_zgrad = efld_rArray.shape[2]
-    if dimensions > 3:
-      self.number_eflds_avg = efld_rArray.shape[3]
-    else:
-      self.number_eflds_avg = 1
+  def SetGrads(self, imp_grad, avg_imp):
+    self.fSiggenData.imp_grad = imp_grad
+    self.fSiggenData.avg_imp = avg_imp
 
-    self.number_eflds = self.number_eflds_avg * self.number_eflds_zgrad
-
-  #   self.efld_ptr_arr = np.empty(number_eflds, dtype=np.obj)
-    self.malloc_efld_array(self.number_eflds)
-    # self.malloc_wp()
-
-    # print "Setting up field information.  May take a minute..."
-    self.SetActiveWpot(wpot_array)
-
+  def SetActiveEfld(self, np.ndarray[float, ndim=4, mode="c"] arr_r not None, np.ndarray[float, ndim=4, mode="c"] arr_z not None):
     # for  (i) in range(self.fSiggenData.rlen):
-    #     for (j) in range(self.fSiggenData.zlen):
-    #       self.pWpot[i][j] = wpot_array[i,j]
-    # self.fSiggenData.wpot = &self.wpot_array[0][0]
+    #   self.pWpot[i] = &input[0,0]
+    # self.fSiggenData.wpot = self.pWpot
+    self.fSiggenData.efld_r = &arr_r[0,0,0,0]
+    # self.fSiggenData.efld_r = &self.efld_r_ptr
 
-    for grad_idx in range(self.number_eflds_zgrad):
-      for mult_idx in range(self.number_eflds_avg):
-        if dimensions == 3:
-          new_ef_r = efld_rArray[:,:,grad_idx]
-          new_ef_z = efld_zArray[:,:,grad_idx]
-        else:
-          new_ef_r = efld_rArray[:,:,grad_idx, mult_idx]
-          new_ef_z = efld_zArray[:,:,grad_idx, mult_idx]
-
-        index = self.number_eflds_zgrad * mult_idx + grad_idx
-        for  (i) in range(self.fSiggenData.rlen):
-            for (j) in range(self.fSiggenData.zlen):
-              self.efld_ptr_arr[index][i][j].r = new_ef_r[i,j]
-              self.efld_ptr_arr[index][i][j].phi = 0.;
-              self.efld_ptr_arr[index][i][j].z = new_ef_z[i,j]
-
-
-  def SetActiveEfld(self, grad_idx, mult_idx):
-    index = self.number_eflds_zgrad * mult_idx + grad_idx
-    self.fSiggenData.efld = self.efld_ptr_arr[index]
+    self.fSiggenData.efld_z = &arr_z[0,0,0,0]
+    # self.fSiggenData.efld_z = &self.efld_z_ptr
 
   def SetActiveWpot(self, np.ndarray[float, ndim=2, mode="c"] input not None):
-    for  (i) in range(self.fSiggenData.rlen):
-      self.pWpot[i] = &input[i,0]
-    self.fSiggenData.wpot = self.pWpot
+    # for  (i) in range(self.fSiggenData.rlen):
+    # self.pWpot[i] = &input[i,0]
+    # self.wp_ptr = &input[0,0]
+    self.fSiggenData.wpot = &input[0,0]
 
-  cdef malloc_efld_array(self, number_eflds, ):
-    # cdef csiggen.cyl_pt *** efld_ptr_arr
-    self.efld_ptr_arr = <csiggen.cyl_pt ***> PyMem_Malloc(number_eflds*sizeof(csiggen.cyl_pt**));
+  def ReadBackMatrix(self, np.ndarray[float, ndim=2, mode="c"] input not None):
+    cdef float* ptr =  &input[0,0]
+    array = np.empty((339, 394))
+    for i in range(array.shape[0]):
+      for j in range(array.shape[1]):
+        array[i,j] = csiggen.get_mat_by_index(ptr, i, j, 394)
+    return array
 
-    for idx_grad in range(number_eflds):
-      self.efld_ptr_arr[idx_grad] = <csiggen.cyl_pt **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(csiggen.cyl_pt*));
-      for j in range(self.fSiggenData.rlen):
-          self.efld_ptr_arr[idx_grad][j] = <csiggen.cyl_pt *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(csiggen.cyl_pt));
+  def ReadWpot(self):
+   array = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
+   for i in range(array.shape[0]):
+     for j in range(array.shape[1]):
+       array[i][j] = csiggen.get_wpot_by_index(i, j, &self.fSiggenData)
 
-  # cdef malloc_wp(self):
-  #   print "mallocing wp"
+   return array
+
+  # def ReadEFields(self):
+  #   array_r = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
+  #   array_z = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
+  #   for i in range(array_r.shape[0]):
+  #     for j in range(array_r.shape[1]):
+  #       array_r[i][j] = csiggen.get_efld_r_by_index(i, j, &self.fSiggenData)
+  #       # array_z[i][j] = csiggen.get_efld_z_by_index(i, j, &self.fSiggenData)
   #
-  #   cdef float ** wpot
-  #   wpot =  <float **> PyMem_Malloc(self.fSiggenData.rlen*sizeof(float*));
-  #   # for j in range(self.fSiggenData.rlen):
-  #   #     wpot[j] = <float *> PyMem_Malloc(self.fSiggenData.zlen*sizeof(float));
-  #       # memset(wpot, 0, self.fSiggenData.zlen*sizeof(float));
-  #   self.pWpot = wpot
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  def SetFields(self, new_ef_r, new_ef_z, new_wp):
-    for  (i) in range(self.fSiggenData.rlen):
-      for (j) in range(self.fSiggenData.zlen):
-        self.fSiggenData.efld[i][j].r = new_ef_r[i,j]
-        self.fSiggenData.efld[i][j].phi = 0.;
-        self.fSiggenData.efld[i][j].z = new_ef_z[i,j]
-        self.fSiggenData.wpot[i][j] = new_wp[i,j]
-
-  @cython.boundscheck(False)
-  @cython.wraparound(False)
-  def ReadFields(self):
-    efld_r = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-    efld_phi = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-    efld_z = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-    wp = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-    for  (i) in range(self.fSiggenData.rlen):
-      for (j) in range(self.fSiggenData.zlen):
-         if self.fSiggenData.efld[i][j].phi != 0:
-          print "oh man this is a bummer"
-         efld_r[i,j] = self.fSiggenData.efld[i][j].r
-         efld_phi[i,j] = self.fSiggenData.efld[i][j].phi
-         efld_z[i,j] = self.fSiggenData.efld[i][j].z
-         wp[i,j] = self.fSiggenData.wpot[i][j]
-    return (efld_r, efld_phi, efld_z, wp)
+  #   return array_r, array_z
 
   def GetTemperature(self):
     return self.fSiggenData.xtal_temp
@@ -439,26 +367,6 @@ cdef class Siggen:
     print "x: %f" % v.x
     print "y: %f" % v.y
     print "z: %f" % v.z
-
-
-#  @cython.boundscheck(False)
-#  @cython.wraparound(False)
-#  def SetElectricField(self, np.ndarray[float, ndim=2, mode="c"] efldR not None, np.ndarray[float, ndim=2, mode="c"] efldZ not None):
-#    for  i in range(self.fSiggenData.rlen):
-#      for j in range(self.fSiggenData.zlen):
-#        self.fSiggenData.efld[i][j].r = efldR[i][j];
-#        self.fSiggenData.efld[i][j].phi = 0.;
-#        self.fSiggenData.efld[i][j].z = efldZ[i][j];
-#
-#  def SetWeightingPotential(self, np.ndarray[float, ndim=2, mode="c"] newWpot not None):
-#    self.c_set_weighting_potential( &newWpot[0] )
-#
-#  cdef c_set_weighting_potential(self, float** newWpot):
-#  #Try to set without copying to make it speedy
-#  #NB: May be a terrible idea.  The "Free"-ing will DEFINITELY go poorly.
-#  #Live fast, die young YOLO
-#    self.fSiggenData.wpot = newWpot;
-
 
   def GetSafeConfiguration(self):
 
