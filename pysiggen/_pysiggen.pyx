@@ -294,11 +294,13 @@ cdef class Siggen:
     self.fSiggenData.pc_radius = pcRad
     self.fSiggenData.pc_length = pcLen
 
-  def SetGradParams(self, imp_grad_step, imp_grad_min, avg_imp_step, avg_imp_min):
+  def SetGradParams(self, imp_grad_step, imp_grad_min, avg_imp_step, avg_imp_min, num_grads, num_imps):
     self.fSiggenData.imp_grad_step = imp_grad_step
     self.fSiggenData.min_imp_grad = imp_grad_min
     self.fSiggenData.avg_imp_step = avg_imp_step
     self.fSiggenData.min_avg_imp = avg_imp_min
+    self.fSiggenData.num_grads = num_grads
+    self.fSiggenData.num_imps = num_imps 
 
   def SetGrads(self, imp_grad, avg_imp):
     self.fSiggenData.imp_grad = imp_grad

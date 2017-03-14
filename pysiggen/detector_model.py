@@ -162,7 +162,7 @@ class Detector:
     imp_grad_step = gradList[1] - gradList[0]
     avg_grad_step = self.impAvgList[1] - self.impAvgList[0]
 
-    self.siggenInst.SetGradParams(imp_grad_step, gradList[0], avg_grad_step, self.impAvgList[0])
+    self.siggenInst.SetGradParams(imp_grad_step, gradList[0], avg_grad_step, self.impAvgList[0], len(gradList), len(self.impAvgList))
 
     # print self.efld_rArray[30*10,30*10,0,0]
     # print self.efld_zArray[30*10,30*10,0,0]

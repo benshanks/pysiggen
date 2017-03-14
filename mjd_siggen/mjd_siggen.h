@@ -138,6 +138,9 @@ typedef struct {
   float imp_grad_step;
   float avg_imp_step;
 
+  int num_imps;
+  int num_grads;
+
   // data for calc_signal.c
   point *dpath_e, *dpath_h;      // electron and hole drift paths
   float initial_vel, final_vel;  // initial and final drift velocities for charges collected to PC

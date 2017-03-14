@@ -124,6 +124,9 @@ cdef extern from "mjd_siggen.h":
     float imp_grad_step;
     float avg_imp_step;
 
+    int num_imps;
+    int num_grads;
+
     # data for calc_signal.c
     point *dpath_e
     point *dpath_h;      # electron and hole drift paths
