@@ -35,8 +35,8 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup);
 static int find_hole_velo(float field, float theta, float phi, point* v_spher, MJD_Siggen_Setup* setup );
 static float drift_velo_model(float E, float mu_0, float beta, float E_0);
 
-static cyl_pt get_efld_grad(int row, int col, float imp_grad, float avg_imp,  MJD_Siggen_Setup *setup);
-static int imp_weights(float avg_imp, float imp_grad, float out[2][2], MJD_Siggen_Setup *setup);
+static cyl_pt get_efld_grad(int row, int col,  MJD_Siggen_Setup *setup);
+static int imp_weights( float out[2][2], MJD_Siggen_Setup *setup);
 
 // static float get_wpot_by_index(int row, int col, MJD_Siggen_Setup* setup );
 // static float get_efld_r_by_index(int row, int col, MJD_Siggen_Setup* setup );
@@ -139,7 +139,6 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
                         + grad*(number_of_imps) + imp];
   }
 
-
   float get_efld_z_by_index(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup){
     int number_of_cols = setup->zlen + 1;
     int number_of_grads = setup->num_grads;
@@ -147,9 +146,10 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     // printf("z: looking for (%d,%d,%d,%d)\n", row, col, grad, imp);
     // printf("z: zeros is %f\n", setup->efld_z[0]);
 
-    return setup->efld_z[row* (number_of_cols+number_of_imps+number_of_grads)
-                        + col*(number_of_imps+number_of_grads)
+    return setup->efld_z[row* (number_of_cols*number_of_imps*number_of_grads)
+                        + col*(number_of_imps*number_of_grads)
                         + grad*(number_of_imps) + imp];
+
   }
 
   /* wpotential
@@ -309,27 +309,21 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     return 0;
   }
 
-  static cyl_pt get_efld_grad(int row, int col, float imp_grad, float avg_imp,  MJD_Siggen_Setup *setup){
+  static cyl_pt get_efld_grad(int row, int col,  MJD_Siggen_Setup *setup){
     cyl_pt e = {0,0,0};
 
-    // float min_imp_grad = 0.;
-    // float min_avg_imp = -0.565;
-    // float imp_step = 0.001000;
-    // float grad_step = 0.000050;
-
     float  w[2][2];
-    imp_weights( imp_grad, avg_imp, w, setup);
+    imp_weights( w, setup);
 
     int  imp, grad;
-    imp = floor(( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  );
-    grad = floor(( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  );
+    imp = ( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  ;
+    grad = ( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  ;
 
     for (int i = 0; i < 2; i++){
       for (int j = 0; j < 2; j++){
-        // printf("getting (%d,%d,%d,%d)\n",row, col, grad+i, imp+j);
+        // printf("getting (%d,%d,%d,%d) weight %f\n",row, col, grad+i, imp+j,w[i][j]);
         e.r += w[i][j]* get_efld_r_by_index(row, col, grad+i, imp+j, setup );
         e.z += w[i][j]* get_efld_z_by_index(row, col, grad+i, imp+j, setup );
-        // *wp += w[i][j]* setup->wpot[ipt.r+i][ipt.z+j];
       }
     }
     return e;
@@ -343,14 +337,10 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     int    i, j;
     grid_weights(pt, ipt, w, setup);
 
-    // float imp_grad, avg_imp;
-    // imp_grad = 0.0001231;
-    // avg_imp = -0.5532342;
-
     for (i = 0; i < 2; i++){
       for (j = 0; j < 2; j++){
         // ef = setup->efld[ipt.r + i][ipt.z + j];
-        e_tmp = get_efld_grad(ipt.r + i, ipt.z + j, setup->imp_grad, setup->avg_imp, setup);
+        e_tmp = get_efld_grad(ipt.r + i, ipt.z + j,  setup);
         e.r += e_tmp.r*w[i][j];
         e.z += e_tmp.z*w[i][j];
       }
@@ -377,8 +367,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
       return 0;
     }
 
-    static int imp_weights(float avg_imp, float imp_grad, float out[2][2],
-      MJD_Siggen_Setup *setup){
+    static int imp_weights( float out[2][2], MJD_Siggen_Setup *setup){
         // float min_imp_grad = 0.;
         // float min_avg_imp = -0.565;
         //
@@ -387,9 +376,19 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
 
         float  imp, grad;
 
-        imp = fmod(( setup->avg_imp - setup->min_avg_imp  ) ,  setup->avg_imp_step  );
-        grad = fmod(( setup->imp_grad - setup->min_imp_grad   ) , setup->imp_grad_step );
+        int  i_imp, i_grad;
+        i_imp = ( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  ;
+        i_grad = ( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  ;
 
+        imp = ( setup->avg_imp - setup->min_avg_imp  ) /  setup->avg_imp_step     - i_imp ;
+        grad = ( setup->imp_grad - setup->min_imp_grad)   /  setup->imp_grad_step - i_grad  ;
+
+        if (imp < 0 || grad < 0){
+        printf("  setup grad: %f, avg %f\n", setup->imp_grad, setup->avg_imp);
+        printf("  i_grad: %d, i_avg %d\n", i_grad, i_imp);
+        printf("  grad: %f, avg %f\n", grad, imp);
+        // printf("  sub grad: %f, avg %f\n", grad, imp);
+      }
         out[0][0] = (1.0 - grad) * (1.0 - imp);
         out[0][1] = (1.0 - grad) *        imp;
         out[1][0] =        grad  * (1.0 - imp);

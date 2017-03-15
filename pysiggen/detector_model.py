@@ -156,6 +156,13 @@ class Detector:
     self.efld_rArray = efld_rArray
     self.efld_zArray = efld_zArray
 
+    # import matplotlib.pyplot as plt
+    # for i in range(len(gradList)):
+    #     for j in range(len(self.impAvgList)):
+    #         print "%d, %d max %f" % (i,j, np.amax(np.abs(self.efld_rArray[:,:,i,j])))
+    #         # plt.imshow(self.efld_rArray[:,:,i,j])
+    #         # plt.show()
+
     self.siggenInst.SetActiveWpot(self.wpArray)
     self.siggenInst.SetActiveEfld(self.efld_rArray, self.efld_zArray)
 

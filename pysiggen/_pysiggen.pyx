@@ -3,6 +3,7 @@
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 from libc.stdlib cimport malloc, free
+from libc.math cimport fmod, floor
 from libc.string cimport strcpy, memset
 
 import numpy as np
@@ -297,10 +298,12 @@ cdef class Siggen:
   def SetGradParams(self, imp_grad_step, imp_grad_min, avg_imp_step, avg_imp_min, num_grads, num_imps):
     self.fSiggenData.imp_grad_step = imp_grad_step
     self.fSiggenData.min_imp_grad = imp_grad_min
+
     self.fSiggenData.avg_imp_step = avg_imp_step
     self.fSiggenData.min_avg_imp = avg_imp_min
+
     self.fSiggenData.num_grads = num_grads
-    self.fSiggenData.num_imps = num_imps 
+    self.fSiggenData.num_imps = num_imps
 
   def SetGrads(self, imp_grad, avg_imp):
     self.fSiggenData.imp_grad = imp_grad
@@ -322,13 +325,32 @@ cdef class Siggen:
     # self.wp_ptr = &input[0,0]
     self.fSiggenData.wpot = &input[0,0]
 
-  def ReadBackMatrix(self, np.ndarray[float, ndim=2, mode="c"] input not None):
-    cdef float* ptr =  &input[0,0]
-    array = np.empty((339, 394))
-    for i in range(array.shape[0]):
-      for j in range(array.shape[1]):
-        array[i,j] = csiggen.get_mat_by_index(ptr, i, j, 394)
-    return array
+  # def ReadBackMatrix(self, np.ndarray[float, ndim=2, mode="c"] input not None):
+  #   cdef float* ptr =  &input[0,0]
+  #   array = np.empty((339, 394))
+  #   for i in range(array.shape[0]):
+  #     for j in range(array.shape[1]):
+  #       array[i,j] = csiggen.get_mat_by_index(ptr, i, j, 394)
+  #   return array
+
+  def PrintEfieldParams(self):
+    print "grad step %f, imp step %f"  % ( self.fSiggenData.imp_grad_step, self.fSiggenData.avg_imp_step )
+    print "grad min %f, imp min %f"  % ( self.fSiggenData.min_imp_grad, self.fSiggenData.min_avg_imp )
+
+  def TestEField(self, imp_grad, avg_imp):
+    # for  (i) in range(self.fSiggenData.rlen):
+    self.fSiggenData.imp_grad = imp_grad
+    self.fSiggenData.avg_imp = avg_imp
+
+    imp = fmod(( self.fSiggenData.avg_imp - self.fSiggenData.min_avg_imp  ) ,  self.fSiggenData.avg_imp_step  );
+    grad = fmod(( self.fSiggenData.imp_grad - self.fSiggenData.min_imp_grad   ) , self.fSiggenData.imp_grad_step );
+
+    print "grad %f, imp %f" % (grad, imp)
+
+    imp = floor(( self.fSiggenData.avg_imp - self.fSiggenData.min_avg_imp   )/ self.fSiggenData.avg_imp_step   );
+    grad = floor(( self.fSiggenData.imp_grad - self.fSiggenData.min_imp_grad   )/ self.fSiggenData.imp_grad_step  );
+
+    print "grad floor %f, imp floor %f" % (grad, imp)
 
   def ReadWpot(self):
    array = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
@@ -338,15 +360,15 @@ cdef class Siggen:
 
    return array
 
-  # def ReadEFields(self):
-  #   array_r = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-  #   array_z = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
-  #   for i in range(array_r.shape[0]):
-  #     for j in range(array_r.shape[1]):
-  #       array_r[i][j] = csiggen.get_efld_r_by_index(i, j, &self.fSiggenData)
-  #       # array_z[i][j] = csiggen.get_efld_z_by_index(i, j, &self.fSiggenData)
-  #
-  #   return array_r, array_z
+  def ReadEFields(self, grad_idx, imp_idx):
+    array_r = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
+    array_z = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
+    for i in range(array_r.shape[0]):
+      for j in range(array_r.shape[1]):
+        array_r[i][j] = csiggen.get_efld_r_by_index(i, j, grad_idx, imp_idx, &self.fSiggenData)
+        array_z[i][j] = csiggen.get_efld_z_by_index(i, j, grad_idx, imp_idx, &self.fSiggenData)
+
+    return array_r, array_z
 
   def GetTemperature(self):
     return self.fSiggenData.xtal_temp
