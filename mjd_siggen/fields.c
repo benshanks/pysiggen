@@ -315,12 +315,13 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     float  w[2][2];
     imp_weights( w, setup);
 
+    int i, j;
     int  imp, grad;
     imp = ( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  ;
     grad = ( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  ;
 
-    for (int i = 0; i < 2; i++){
-      for (int j = 0; j < 2; j++){
+    for ( i = 0; i < 2; i++){
+      for ( j = 0; j < 2; j++){
         // printf("getting (%d,%d,%d,%d) weight %f\n",row, col, grad+i, imp+j,w[i][j]);
         e.r += w[i][j]* get_efld_r_by_index(row, col, grad+i, imp+j, setup );
         e.z += w[i][j]* get_efld_z_by_index(row, col, grad+i, imp+j, setup );
