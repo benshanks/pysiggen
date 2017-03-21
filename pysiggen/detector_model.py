@@ -306,8 +306,8 @@ class Detector:
 ########################################################################################################
   def GetRawSiggenWaveform(self, r,phi,z, energy=1):
 
-    x = r * np.sin(phi)
-    y = r * np.cos(phi)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
     self.raw_siggen_data.fill(0.)
 
     calcFlag = self.siggenInst.GetSignal(x, y, z, self.raw_siggen_data);
@@ -330,8 +330,8 @@ class Detector:
             print "output array must be length %d (the current siggen calc length setting)" % self.calc_length
             exit(0)
 
-    x = r * np.sin(phi)
-    y = r * np.cos(phi)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
     output_array.fill(0.)
 
     calcFlag = self.siggenInst.MakeSignal(x, y, z, output_array, charge);
