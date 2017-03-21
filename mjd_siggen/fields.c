@@ -252,46 +252,23 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
 
         //      printf("velo params: %f, %f, %f\n",  setup->v_params->h_100_mu0, setup->v_params->h_100_beta, setup->v_params->h_100_e0);
 
-        //phi_0 and theta_0 are the directions of the e-field
-        float phi_0 = atan2(cart_en.y,cart_en.x);
-        float theta_0 = acos(cart_en.z  );
+        //phi and theta are the directions of the e-field
+        float phi = atan2(cart_en.y,cart_en.x);
+        float theta = acos(cart_en.z  );
 
-        //these are the position in the detector, using spherical coords
-        // float r = sqrt( pt.x*pt.x + pt.y*pt.y + pt.z*pt.z   );
-        float theta = theta_0;
-        float phi = phi_0;
-        // phi += M_PI/2.;
-
-        //This is unseemly, but velo_local is in rotated carteisan coordinates
+        //This is unseemly, but velo_local is in rotated coordinates
         point velo_local;
-        find_hole_velo(abse, theta_0, phi_0, &velo_local, setup);
+        find_hole_velo(abse, theta, phi, &velo_local, setup);
 
-        //now rotate back to cartesian coords
+        //rotate back
+        velo->x = cos(phi)*sin(theta)*velo_local.x + cos(phi)*cos(theta)*velo_local.y - sin(phi)*velo_local.z;
+        velo->y = sin(phi)*sin(theta)*velo_local.x + sin(phi)*cos(theta)*velo_local.y + cos(phi)*velo_local.z;
+        velo->z = cos(theta)*velo_local.x - sin(theta)*velo_local.y;
 
-        // velo->x = cos(theta)*cos(phi)*velo_local.x + sin(phi)*velo_local.y - sin(theta)*cos(phi)*velo_local.z;
-        // velo->y = -cos(theta)*sin(phi)*velo_local.x + cos(phi)*velo_local.y + sin(theta)*sin(phi)*velo_local.z;
-        // velo->z = sin(theta)*velo_local.x + cos(theta) * velo_local.z;
-
+        //now rotate back to cartesian coords (this is the old way which I'm nearly certain is wrong)
         // velo->x = sin(theta)*cos(phi) * velo_local.x + cos(theta)*cos(phi) * velo_local.y - sin(theta)*sin(phi) * velo_local.z;
         // velo->y = sin(theta)*sin(phi) * velo_local.x + cos(theta)*sin(phi) * velo_local.y + sin(theta)*cos(phi) * velo_local.z;
-        // velo->z = cos(theta) * velo_local.x - sin(theta) * velo_local.z;
-
-
-        //TODO: I'm way less than confident that this is right
-        velo->x = sin(theta)*cos(phi) * velo_local.x + cos(theta)*cos(phi) * velo_local.y - sin(theta)*sin(phi) * velo_local.z;
-        velo->y = sin(theta)*sin(phi) * velo_local.x + cos(theta)*sin(phi) * velo_local.y + sin(theta)*cos(phi) * velo_local.z;
-        velo->z = cos(theta) * velo_local.x - sin(theta) * velo_local.z;
-
-        //    printf("velo: %f, %f,%f \n", velo->x, velo->y, velo->z);
-
-        // printf("pos (cart): %f, %f,%f \n", pt.x, pt.y, pt.z);
-        // printf("pos (spher): %f, %f,%f \n", r, theta, phi);
-        // printf("efld (cyl): %f, %f,%f \n", e.r, e.phi, e.z);
-        // printf("efld (cart): %f, %f,%f \n", cart_en.x, cart_en.y, cart_en.z);
-        // printf("efld (spher): %f, %f,%f \n", abse, theta_0, phi_0);
-        // printf("velo (local): %f, %f,%f \n", velo_local.x, velo_local.y, velo_local.z);
-        // printf("velo (global): %f, %f,%f \n", velo->x, velo->y, velo->z);
-
+        // velo->z = cos(theta) * velo_local.x - sin(theta) * velo_local.y;
 
         return 0;
       }
