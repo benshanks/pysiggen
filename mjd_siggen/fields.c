@@ -118,7 +118,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
   }
 
   float get_wpot_by_index(int row, int col, MJD_Siggen_Setup *setup){
-    int number_of_cols = setup->zlen + 1;
+    int number_of_cols = setup->zlen;
     // printf( "num of cols is %d\n" , number_of_cols);
     return setup->wpot[row*number_of_cols + col];
   }
