@@ -39,6 +39,7 @@ class Detector:
         (self.detector_radius, self.detector_length) = self.siggenInst.GetDimensions()
         (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
         self.taper_length = self.siggenInst.GetTaperLength()
+        self.top_bullet_radius = self.siggenInst.GetTopBulletRadius()
         # print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
 
@@ -291,6 +292,9 @@ class Detector:
       return 0
     elif r**2/self.pcRad**2 + z**2/self.pcLen**2 < 1:
       return 0
+    elif (z > (self.detector_length - self.top_bullet_radius) ) and (r > (self.detector_radius - self.top_bullet_radius) ):
+      if np.sqrt( (z - self.detector_length + self.top_bullet_radius)**2 + (r - self.detector_radius + self.top_bullet_radius)**2) > self.top_bullet_radius:
+          return 0
     else:
       return 1
 ###########################################################################################################################

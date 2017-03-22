@@ -145,6 +145,18 @@ cdef class Siggen:
   def MakeSignal(self, float x, float y, float z, np.ndarray[float, ndim=1, mode="c"] input not None, float charge):
     return  self.c_make_signal(x,y,z, &input[0], charge)
 
+  def GetLastDriftPath(self, charge):
+    cdef csiggen.point pt
+
+    pos = np.zeros((self.fSiggenData.time_steps_calc, 3))
+    for i in range(self.fSiggenData.time_steps_calc):
+      if charge == 1:
+        pt = self.fSiggenData.dpath_h[i]
+      elif charge == -1:
+        pt = self.fSiggenData.dpath_e[i]
+      pos[i,:] = (pt.x, pt.y,pt.z)
+
+    return pos
 
   def ChargeCloudCorrect(self, np.ndarray[float, ndim=1, mode="c"] input not None, charge_cloud_size):
     self.c_charge_cloud_correction(&input[0], charge_cloud_size)
@@ -376,6 +388,8 @@ cdef class Siggen:
     return ( self.fSiggenData.xtal_radius, self.fSiggenData.xtal_length)
   def GetTaperLength(self):
     return self.fSiggenData.taper_length
+  def GetTopBulletRadius(self):
+    return self.fSiggenData.top_bullet_radius
 
   def FindDriftVelocity(self, float x, float y, float z):
     self.c_find_drift_velocity( x, y, z)
