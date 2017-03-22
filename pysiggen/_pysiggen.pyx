@@ -3,7 +3,7 @@
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 from libc.stdlib cimport malloc, free
-from libc.math cimport fmod, floor
+from libc.math cimport fmod, floor, lrint
 from libc.string cimport strcpy, memset
 
 import numpy as np
@@ -50,8 +50,8 @@ cdef class Siggen:
       self.fSiggenData.zmax  = self.fSiggenData.xtal_length;
       self.fSiggenData.zstep = self.fSiggenData.xtal_grid;
 
-      self.fSiggenData.rlen = np.int((self.fSiggenData.rmax - self.fSiggenData.rmin)/self.fSiggenData.rstep) + 1;
-      self.fSiggenData.zlen = np.int((self.fSiggenData.zmax - self.fSiggenData.zmin)/self.fSiggenData.zstep) + 1;
+      self.fSiggenData.rlen =   lrint((self.fSiggenData.rmax - self.fSiggenData.rmin)/self.fSiggenData.rstep) + 1;
+      self.fSiggenData.zlen =  lrint((self.fSiggenData.zmax - self.fSiggenData.zmin)/self.fSiggenData.zstep) + 1;
 
       # csiggen.field_setup(&self.fSiggenData);
 
