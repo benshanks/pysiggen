@@ -142,8 +142,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     int number_of_cols = setup->zlen;
     int number_of_grads = setup->num_grads;
     int number_of_imps = setup->num_imps;
-    // printf("z: looking for (%d,%d,%d,%d)\n", row, col, grad, imp);
-    // printf("z: zeros is %f\n", setup->efld_z[0]);
+    TELL_CHATTY("z: looking for (%d,%d,%d,%d)\n", row, col, grad, imp);
 
     return setup->efld_z[row* (number_of_cols*number_of_imps*number_of_grads)
                         + col*(number_of_imps*number_of_grads)
