@@ -61,6 +61,7 @@ class Detector:
 
 
         self.trapping_rc = None
+        self.rc_int_exp = None #antialiasing rc
         self.t0_padding = t0_padding
 
         #stuff for waveform interpolation
@@ -85,6 +86,9 @@ class Detector:
         self.padded_siggen_data = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
         self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
         self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
+
+        self.siggen_interp_fn = None
+        self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFields(self, fieldFileName):
@@ -270,11 +274,14 @@ class Detector:
 
     self.rc1_frac = rc1_frac
 
+  def SetAntialiasingRC(self, rc_int_in_ns):
+    #rc_int is in ns
+
     #rc integration for gretina low-pass filter (-3dB at 50 MHz)
-    rc_int = 2 * 49.9 * 33E-12
+    # rc_int = 2 * 49.9 * 33E-12
+    rc_int = rc_int_in_ns*1E-9
     self.rc_int_exp = np.exp(-1./1E8/rc_int)
     self.rc_int_gain = 1./ (1-self.rc_int_exp)
-
 
   def SetTransferFunctionByTF(self, num, den):
     #should already be discrete params
@@ -411,7 +418,7 @@ class Detector:
     siggen_len = self.num_steps + self.t0_padding
     siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
-    temp_wf = np.zeros( self.wf_output_length+2)
+    temp_wf = self.temp_wf
     temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
     temp_wf[siggen_len_output::] =  temp_wf[siggen_len_output-1]
 
@@ -425,8 +432,9 @@ class Detector:
     temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
 
     #filter for low-pass filter on gretina card
-    temp_wf= signal.lfilter([1,0], [1,-self.rc_int_exp], temp_wf)
-    temp_wf /= self.rc_int_gain
+    if self.rc_int_exp is not None:
+        temp_wf= signal.lfilter([1,0], [1,-self.rc_int_exp], temp_wf)
+        temp_wf /= self.rc_int_gain
 
     smax = np.amax(temp_wf)
     if smax == 0:
@@ -461,7 +469,7 @@ class Detector:
 
     num_samples_to_fill = outputLength - start_idx
 
-    siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
+    self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
 
     offset = align_point_ceil - align_point
     sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
@@ -473,9 +481,7 @@ class Detector:
     if start_idx <0:
         return None
 
-
     self.processed_siggen_data.fill(0.)
-
     coarse_vals =   siggen_interp_fn(sampled_idxs)
 
     if doMaxInterp:
@@ -541,6 +547,11 @@ class Detector:
 
     #filter for the damped oscillation
     self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter(self.num, self.den, self.processed_siggen_data[switchpoint_ceil-1:outputLength])
+
+    #filter for low-pass filter on gretina card
+    if self.rc_int_exp is not None:
+        self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter([1,0], [1,-self.rc_int_exp], self.processed_siggen_data[switchpoint_ceil-1:outputLength])
+        self.processed_siggen_data[switchpoint_ceil-1:outputLength] /= self.rc_int_gain
 
     #filter for the exponential decay
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
