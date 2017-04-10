@@ -482,7 +482,7 @@ class Detector:
         return None
 
     self.processed_siggen_data.fill(0.)
-    coarse_vals =   siggen_interp_fn(sampled_idxs)
+    coarse_vals =   self.siggen_interp_fn(sampled_idxs)
 
     if doMaxInterp:
         fine_idxs = np.argwhere(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
@@ -521,7 +521,7 @@ class Detector:
     else:
         num_samples_to_fill = siggen_len_output - 1
 
-    siggen_interp_fn = interpolate.interp1d(np.arange(siggen_len ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
+    self.siggen_interp_fn = interpolate.interp1d(np.arange(siggen_len ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
     siggen_start_idx = (switchpoint_ceil - switchpoint) * self.data_to_siggen_size_ratio
     sampled_idxs = np.arange(num_samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
 
@@ -532,7 +532,7 @@ class Detector:
     self.processed_siggen_data.fill(0.)
 
     try:
-      self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = siggen_interp_fn(sampled_idxs)
+      self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = self.siggen_interp_fn(sampled_idxs)
       self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)-1]
     except ValueError:
       print "Something goofy happened here during interp"
