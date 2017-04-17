@@ -88,6 +88,7 @@ class Detector:
         self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
         self.siggen_interp_fn = None
+        self.signal_peak_fn = None
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
@@ -448,9 +449,9 @@ class Detector:
         if sim_max_idx <= interp_length or sim_max_idx >= (len(temp_wf) - interp_length):
             return None
 
-        signal_peak_fn = interpolate.interp1d( np.arange(sim_max_idx-interp_length, sim_max_idx+interp_length+1), temp_wf[sim_max_idx-interp_length:sim_max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
+        self.signal_peak_fn = interpolate.interp1d( np.arange(sim_max_idx-interp_length, sim_max_idx+interp_length+1), temp_wf[sim_max_idx-interp_length:sim_max_idx+interp_length+1], kind='cubic', assume_sorted=True, copy=False)
         interp_idxs = np.linspace(sim_max_idx-1,sim_max_idx+1, 101)
-        interp = signal_peak_fn(interp_idxs)
+        interp = self.signal_peak_fn(interp_idxs)
         interp_sim_max_idx = interp_idxs[np.argmax(interp)] #this is the wf max, to nearest hundredth of a sample
 
         siggen_offset = interp_sim_max_idx - sim_max_idx #how far in front of the max you should be sampling the siggen waveforms
@@ -486,7 +487,7 @@ class Detector:
 
     if doMaxInterp:
         fine_idxs = np.argwhere(np.logical_and(sampled_idxs > sim_max_idx-interp_length, sampled_idxs < sim_max_idx + interp_length))
-        fine_vals = signal_peak_fn(sampled_idxs[fine_idxs])
+        fine_vals = self.signal_peak_fn(sampled_idxs[fine_idxs])
         coarse_vals[fine_idxs] = fine_vals
 
     try:
