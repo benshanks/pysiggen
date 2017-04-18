@@ -41,7 +41,7 @@ cdef class Siggen:
       # csiggen.set_hole_params(66333., 0.744, 181., 107270., 0.580, 100., &self.fSiggenData)
     else:
 
-      csiggen.read_config(conffilename, &self.fSiggenData);
+      csiggen.read_config(conffilename.encode('utf-8'), &self.fSiggenData);
 
       self.fSiggenData.rmin  = 0;
       self.fSiggenData.rmax  = self.fSiggenData.xtal_radius;
