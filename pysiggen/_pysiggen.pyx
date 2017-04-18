@@ -113,7 +113,7 @@ cdef class Siggen:
   #   self.pWpot = wpot;
 
   cdef c_get_signal(self, float x, float y, float z, float* signal):
-    print "Getting signal at (%0.2f, %0.2f, %0.2f)" % (x,y,z)
+    # print "Getting signal at (%0.2f, %0.2f, %0.2f)" % (x,y,z)
     cdef csiggen.point pt
     pt.x = x
     pt.y = y
@@ -206,7 +206,7 @@ cdef class Siggen:
 
   cpdef set_time_step_length(self, float timeStepLength):
     if timeStepLength < self.fSiggenData.step_time_calc:
-      print "Also reducing time step calc to %f" % timeStepLength
+      # print "Also reducing time step calc to %f" % timeStepLength
       self.fSiggenData.step_time_calc = timeStepLength;
     self.fSiggenData.step_time_out = timeStepLength
 
@@ -275,26 +275,26 @@ cdef class Siggen:
 
       if i >3: continue
 
-      print "Row number %d" % i
-      print self.fVelocityTempData[i].e
-      print self.fVelocityTempData[i].e100
-      print self.fVelocityTempData[i].e110
-      print self.fVelocityTempData[i].e111
-      print self.fVelocityTempData[i].h100
-      print self.fVelocityTempData[i].h110
-      print self.fVelocityTempData[i].h111
-      print self.fVelocityTempData[i].ea
-      print self.fVelocityTempData[i].eb
-      print self.fVelocityTempData[i].ec
-      print self.fVelocityTempData[i].ebp
-      print self.fVelocityTempData[i].ecp
-      print self.fVelocityTempData[i].ha
-      print self.fVelocityTempData[i].hb
-      print self.fVelocityTempData[i].hc
-      print self.fVelocityTempData[i].hbp
-      print self.fVelocityTempData[i].hcp
-      print self.fVelocityTempData[i].hcorr
-      print self.fVelocityTempData[i].ecorr
+      # print "Row number %d" % i
+      # print self.fVelocityTempData[i].e
+      # print self.fVelocityTempData[i].e100
+      # print self.fVelocityTempData[i].e110
+      # print self.fVelocityTempData[i].e111
+      # print self.fVelocityTempData[i].h100
+      # print self.fVelocityTempData[i].h110
+      # print self.fVelocityTempData[i].h111
+      # print self.fVelocityTempData[i].ea
+      # print self.fVelocityTempData[i].eb
+      # print self.fVelocityTempData[i].ec
+      # print self.fVelocityTempData[i].ebp
+      # print self.fVelocityTempData[i].ecp
+      # print self.fVelocityTempData[i].ha
+      # print self.fVelocityTempData[i].hb
+      # print self.fVelocityTempData[i].hc
+      # print self.fVelocityTempData[i].hbp
+      # print self.fVelocityTempData[i].hcp
+      # print self.fVelocityTempData[i].hcorr
+      # print self.fVelocityTempData[i].ecorr
 
   def SetTemperature(self, h_temp, e_temp=0):
     self.fSiggenData.xtal_temp = h_temp
@@ -345,9 +345,9 @@ cdef class Siggen:
   #       array[i,j] = csiggen.get_mat_by_index(ptr, i, j, 394)
   #   return array
 
-  def PrintEfieldParams(self):
-    print "grad step %f, imp step %f"  % ( self.fSiggenData.imp_grad_step, self.fSiggenData.avg_imp_step )
-    print "grad min %f, imp min %f"  % ( self.fSiggenData.min_imp_grad, self.fSiggenData.min_avg_imp )
+  # def PrintEfieldParams(self):
+  #   print "grad step %f, imp step %f"  % ( self.fSiggenData.imp_grad_step, self.fSiggenData.avg_imp_step )
+  #   print "grad min %f, imp min %f"  % ( self.fSiggenData.min_imp_grad, self.fSiggenData.min_avg_imp )
 
   def TestEField(self, imp_grad, avg_imp):
     # for  (i) in range(self.fSiggenData.rlen):
@@ -357,12 +357,12 @@ cdef class Siggen:
     imp = fmod(( self.fSiggenData.avg_imp - self.fSiggenData.min_avg_imp  ) ,  self.fSiggenData.avg_imp_step  );
     grad = fmod(( self.fSiggenData.imp_grad - self.fSiggenData.min_imp_grad   ) , self.fSiggenData.imp_grad_step );
 
-    print "grad %f, imp %f" % (grad, imp)
+    # print "grad %f, imp %f" % (grad, imp)
 
     imp = floor(( self.fSiggenData.avg_imp - self.fSiggenData.min_avg_imp   )/ self.fSiggenData.avg_imp_step   );
     grad = floor(( self.fSiggenData.imp_grad - self.fSiggenData.min_imp_grad   )/ self.fSiggenData.imp_grad_step  );
 
-    print "grad floor %f, imp floor %f" % (grad, imp)
+    # print "grad floor %f, imp floor %f" % (grad, imp)
 
   def ReadWpot(self):
    array = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
@@ -402,9 +402,9 @@ cdef class Siggen:
 
     cdef csiggen.vector v
     csiggen.drift_velocity( pt, -1., &v, &self.fSiggenData)
-    print "x: %f" % v.x
-    print "y: %f" % v.y
-    print "z: %f" % v.z
+    # print "x: %f" % v.x
+    # print "y: %f" % v.y
+    # print "z: %f" % v.z
 
   def GetSafeConfiguration(self):
 

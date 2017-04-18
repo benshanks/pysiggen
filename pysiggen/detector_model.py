@@ -68,7 +68,7 @@ class Detector:
         #round here to fix floating point accuracy problem
         data_to_siggen_size_ratio = np.around(10. / self.time_step_size,3)
         if not data_to_siggen_size_ratio.is_integer():
-          print "Error: siggen step size must evenly divide into 10 ns digitization period (ratio is %f)" % data_to_siggen_size_ratio
+          print( "Error: siggen step size must evenly divide into 10 ns digitization period (ratio is {0})".format(data_to_siggen_size_ratio) )
           exit(0)
         elif data_to_siggen_size_ratio < 10:
           round_places = 0
@@ -77,7 +77,7 @@ class Detector:
         elif data_to_siggen_size_ratio < 1000:
           round_places = 2
         else:
-          print "Error: Ben was too lazy to code in support for resolution this high"
+          print( "Error: Ben was too lazy to code in support for resolution this high" )
           exit(0)
         self.data_to_siggen_size_ratio = np.int(data_to_siggen_size_ratio)
 
@@ -221,10 +221,10 @@ class Detector:
 
   def SetGrads(self, imp_grad, avg_imp):
       if imp_grad < self.gradList[0] or imp_grad > self.gradList[-1]:
-          print "impurity gradient %f is out of range [%f,%f]" % (imp_grad, self.gradList[0], self.gradList[-1])
+          print( "impurity gradient {0} is out of range [{1},{2}]".format(imp_grad, self.gradList[0], self.gradList[-1]) )
           exit(0)
       if avg_imp < self.impAvgList[0] or avg_imp > self.impAvgList[-1]:
-          print "avg impurity %f is out of range [%f,%f]" % (avg_imp, self.impAvgList[0], self.impAvgList[-1])
+          print( "avg impurity {0}} is out of range [{1},{2}]".format(avg_imp, self.impAvgList[0], self.impAvgList[-1]) )
           exit(0)
 
       self.siggenInst.SetGrads(imp_grad, avg_imp)
@@ -327,7 +327,7 @@ class Detector:
 #      print "Holes out of crystal alert! (%0.3f,%0.3f,%0.3f)" % (r,phi,z)
       return None
     if np.amax(self.raw_siggen_data) == 0:
-      print "found zero wf at r=%0.2f, phi=%0.2f, z=%0.2f (calcflag is %d)" % (r, phi, z, calcFlag)
+      print( "found zero wf at r={0}, phi={1}, z={2} (calcflag is {3})".format(r, phi, z, calcFlag) )
       return None
     return self.raw_siggen_data
 
@@ -339,7 +339,7 @@ class Detector:
         output_array = self.raw_charge_data
     else:
         if len(output_array) != self.calc_length:
-            print "output array must be length %d (the current siggen calc length setting)" % self.calc_length
+            print( "output array must be length {0} (the current siggen calc length setting)".format(self.calc_length) )
             exit(0)
 
     x = r * np.cos(phi)
@@ -357,8 +357,8 @@ class Detector:
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
     if ratio != 1:
-        print "Hardcoded values are set up which can't handle this ratio of calc signal length to num steps."
-        print "(which is to say, everything on the calc side should be in 1 ns steps)"
+        print( "Hardcoded values are set up which can't handle this ratio of calc signal length to num steps." )
+        print( "(which is to say, everything on the calc side should be in 1 ns steps)" )
         exit(0)
 
     hole_wf = self.MakeRawSiggenWaveform(r, phi, z, 1)
@@ -493,10 +493,10 @@ class Detector:
     try:
         self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] = coarse_vals
     except ValueError:
-        print len(self.processed_siggen_data)
-        print start_idx
-        print num_samples_to_fill
-        print sampled_idxs
+        print( len(self.processed_siggen_data) )
+        print( start_idx)
+        print( num_samples_to_fill)
+        print( sampled_idxs)
         exit(0)
 
     return self.processed_siggen_data[:outputLength]
@@ -512,7 +512,7 @@ class Detector:
     #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
     switchpoint_ceil= np.int( np.ceil(switchpoint) )
 
-    # print "siggen len output is %d" % siggen_len_output
+    # print( "siggen len output is %d" % siggen_len_output
 
     pad_space = outputLength - siggen_len_output
     # print "padspace minus switch %d" % (pad_space - switchpoint_ceil)
@@ -536,13 +536,13 @@ class Detector:
       self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = self.siggen_interp_fn(sampled_idxs)
       self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)-1]
     except ValueError:
-      print "Something goofy happened here during interp"
-      print "siggen len output is %d (calculated is %d)" % (siggen_len_output, siggen_wf.size)
-      print "desired output length is %d" % outputLength
-      print "switchpoint is %d" % switchpoint
-      print "siggen start idx is %d" % siggen_start_idx
-      print "num samples to fill is %d" % num_samples_to_fill
-      print sampled_idxs
+      print("Something goofy happened here during interp")
+      print("siggen len output is {0} (calculated is {1})".format(siggen_len_output, siggen_wf.size) )
+      print("desired output length is {0}".format(outputLength))
+      print( "switchpoint is {0}".format(switchpoint))
+      print( "siggen start idx is {0}".format(siggen_start_idx))
+      print( "num samples to fill is {0}".format(num_samples_to_fill))
+      print( sampled_idxs)
       exit(0)
     #   return None
 
