@@ -6,7 +6,7 @@ import copy, math
 import ctypes
 from scipy import  signal, interpolate, ndimage
 
-from _pysiggen import Siggen
+from ._pysiggen import Siggen
 
 #Does all the interfacing with siggen for you, stores/loads lookup tables, and does electronics shaping
 

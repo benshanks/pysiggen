@@ -2,4 +2,7 @@
 
 __version__ = "0.4.0"
 
+__all__ = ["Detector", "Siggen"]
+
 from .detector_model import Detector
+from ._pysiggen import Siggen
