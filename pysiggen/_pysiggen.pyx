@@ -510,7 +510,7 @@ cdef class Siggen:
     self.fSiggenData.write_WP = siggenConfig["write_WP"];             # set to 1 to calculate WP and write it to output file, 0 otherwise
     self.fSiggenData.bulletize_PC = siggenConfig["bulletize_PC"];         # set to 1 for inside of point contact hemispherical, 0 for cylindrical
 
-    strcpy(self.fSiggenData.drift_name,  siggenConfig["drift_name"]);
+    strcpy(self.fSiggenData.drift_name,  siggenConfig["drift_name"].encode('utf-8'));
 
     # signal calculation
     self.fSiggenData.xtal_temp = siggenConfig["xtal_temp"];            # crystal temperature in Kelvin
