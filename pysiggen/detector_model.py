@@ -417,7 +417,7 @@ class Detector:
 ########################################################################################################
   def ProcessWaveformByMax(self, siggen_wf, align_point, outputLength, doMaxInterp=True):
     siggen_len = self.num_steps + self.t0_padding
-    siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
+    siggen_len_output = np.int(siggen_len/self.data_to_siggen_size_ratio)
 
     temp_wf = self.temp_wf
     temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
