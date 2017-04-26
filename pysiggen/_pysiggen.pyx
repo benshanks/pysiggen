@@ -386,6 +386,8 @@ cdef class Siggen:
     return self.fSiggenData.xtal_temp
   def GetDimensions(self):
     return ( self.fSiggenData.xtal_radius, self.fSiggenData.xtal_length)
+  def GetPointContactDimensions(self):
+    return ( self.fSiggenData.pc_length, self.fSiggenData.pc_radius)
   def GetTaperLength(self):
     return self.fSiggenData.taper_length
   def GetTopBulletRadius(self):

@@ -40,6 +40,8 @@ class Detector:
         (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
         self.taper_length = self.siggenInst.GetTaperLength()
         self.top_bullet_radius = self.siggenInst.GetTopBulletRadius()
+        (self.pcLen, self.pcRad) = self.siggenInst.GetPointContactDimensions()
+
         # print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
 
@@ -92,7 +94,7 @@ class Detector:
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
-  def LoadFields(self, fieldFileName):
+  def LoadFieldsGrad(self, fieldFileName,):
     self.fieldFileName = fieldFileName
 
     with np.load(fieldFileName) as data:
@@ -101,52 +103,9 @@ class Detector:
       efld_rArray = data['efld_rArray']
       efld_zArray = data['efld_zArray']
       gradList = data['gradList']
-      pcRadList = data['pcRadList']
-      pcLenList = data['pcLenList']
+
 
     self.gradList = gradList
-    self.pcRadList = pcRadList
-    self.pcLenList = pcLenList
-
-    r_space = np.arange(0, wpArray.shape[0]/10. , 0.1, dtype=np.dtype('f4'))
-    z_space = np.arange(0, wpArray.shape[1]/10. , 0.1, dtype=np.dtype('f4'))
-
-#    self.wp_functions = np.empty((wpArray.shape[0],wpArray.shape[1]), dtype=np.object)
-#    self.efld_r_functions = np.empty((wpArray.shape[0],wpArray.shape[1]), dtype=np.object)
-#    self.efld_z_functions = np.empty((wpArray.shape[0],wpArray.shape[1]), dtype=np.object)
-    self.wpArray = wpArray
-    self.efld_rArray = efld_rArray
-    self.efld_zArray = efld_zArray
-##
-#    for r in range(wpArray.shape[0]):
-#      for z in range(wpArray.shape[1]):
-#        self.wp_functions[r,z] = interpolate.RectBivariateSpline(pcRadList, pcLenList, wpArray[r,z,:,:], kx=1, ky=1)
-#        self.efld_r_functions[r,z] = interpolate.RegularGridInterpolator((gradList, pcRadList, pcLenList), efld_rArray[r,z,:,:,:])
-#        self.efld_z_functions[r,z] = interpolate.RegularGridInterpolator((gradList, pcRadList, pcLenList), efld_zArray[r,z,:,:,:])
-#
-    self.wp_function = interpolate.RegularGridInterpolator((r_space, z_space, pcRadList, pcLenList), wpArray, )
-    self.efld_r_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList, pcRadList, pcLenList), efld_rArray, )
-    self.efld_z_function = interpolate.RegularGridInterpolator((r_space, z_space, gradList, pcRadList, pcLenList), efld_zArray,)
-
-    (self.rr, self.zz) = np.meshgrid(r_space, z_space)
-###########################################################################################################################
-  def LoadFieldsGrad(self, fieldFileName, pcLen=None, pcRad=None):
-    self.fieldFileName = fieldFileName
-
-    with np.load(fieldFileName) as data:
-      data = np.load(fieldFileName)
-      wpArray  = data['wpArray']
-      efld_rArray = data['efld_rArray']
-      efld_zArray = data['efld_zArray']
-      gradList = data['gradList']
-      if pcLen is  None:
-          pcLen = data['pcLen']
-      if pcRad is  None:
-          pcRad = data['pcRad']
-
-    self.gradList = gradList
-    self.pcLen = pcLen
-    self.pcRad = pcRad
 
     # if 'gradMultList' in data:
     #     self.gradMultList = data['gradMultList']
@@ -187,37 +146,7 @@ class Detector:
     # plt.show()
 
 
-  # def SetFieldsGradInterp(self, impurityGrad):
-  #
-  #   self.impurityGrad = impurityGrad
-  #   gradIdx = (np.abs(self.gradList-impurityGrad)).argmin()
-  #   self.SetFieldsGradIdx(gradIdx)
-  #
-  # def SetFieldsGradIdx(self, gradIdx):
-  #     gradIdx = np.int(gradIdx)
-  #   #   self.e_r = self.efld_rArray[:,:,gradIdx]
-  #   #   self.e_z = self.efld_zArray[:,:,gradIdx]
-  #
-  #     self.siggenInst.SetActiveEfld(self.efld_rArray[gradIdx], self.efld_zArray[gradIdx])
 
-    #   import matplotlib.pyplot as plt
-    #   wpot = self.siggenInst.ReadWpot()
-    #   plt.imshow(wpot)
-
-    #   plt.figure()
-    #   er,ez = self.siggenInst.ReadEFields()
-    #   plt.imshow(er)
-
-    #   plt.figure()
-    #   plt.imshow(ez)
-
-    #   plt.show()
-
-    #   self.efr_pp = getPointer(self.e_r)
-    #   self.efz_pp = getPointer(self.e_z)
-
-
-      #self.siggenInst.SetActiveEfld(gradIdx,0)
 
   def SetGrads(self, imp_grad, avg_imp):
       if imp_grad < self.gradList[0] or imp_grad > self.gradList[-1]:
