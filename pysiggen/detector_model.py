@@ -164,7 +164,7 @@ class Detector:
 
 ###########################################################################################################################
   def ReinitializeDetector(self):
-    self.LoadFieldsGrad(self.fieldFileName, , )
+    self.LoadFieldsGrad(self.fieldFileName,  )
 
 #    self.SetTemperature(self.temperature)
 #    self.SetFields(self.pcRad, self.pcLen, self.impurityGrad)
