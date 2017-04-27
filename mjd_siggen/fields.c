@@ -87,7 +87,7 @@ int field_setup(MJD_Siggen_Setup *setup){
 static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
   cyl_int_pt ipt;
   char ptstr[MAX_LINE];
-  int  i, j, ir, iz;
+  int  i, j, ir, iz, imp, grad;
   sprintf(ptstr, "(r,z) = (%.1f,%.1f)", pt.r, pt.z);
   if (outside_detector_cyl(pt, setup)){
     TELL_CHATTY("point %s is outside crystal\n", ptstr);
@@ -96,6 +96,9 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
   ipt.r = (pt.r - setup->rmin)/setup->rstep;
   ipt.phi = 0;
   ipt.z = (pt.z - setup->zmin)/setup->zstep;
+  imp = ( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  ;
+  grad = ( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  ;
+
 
   if (ipt.r < 0 || ipt.r + 1 >= setup->rlen ||
     ipt.z < 0 || ipt.z + 1 >= setup->zlen){
@@ -106,7 +109,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
       ir = ipt.r + i;
       for (j = 0; j < 2; j++){
         iz = ipt.z + j;
-        if (   get_efld_r_by_index(ir,iz,0,0, setup) == 0.0 && get_efld_z_by_index(ir,iz,0,0, setup) == 0.0) {
+        if (   get_efld_r_by_index(ir,iz,grad,imp, setup) == 0.0 && get_efld_z_by_index(ir,iz,grad,imp, setup) == 0.0) {
           // printf("point %s has no efield\n", ptstr);
           TELL_CHATTY("point %s has no efield\n", ptstr);
           return 0;
