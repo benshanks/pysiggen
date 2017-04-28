@@ -107,10 +107,10 @@ class Detector:
 
     self.gradList = gradList
 
-    # if 'gradMultList' in data:
-    #     self.gradMultList = data['gradMultList']
-    # else:
-    #     self.gradMultList = [1]
+    if 'measured_imp' in data:
+        self.measured_impurity = data['gradMultList']
+    if 'measured_grad' in data:
+        self.measured_imp_grad = data['measured_grad']
 
     if 'impAvgList' in data:
         self.impAvgList = data['impAvgList']
