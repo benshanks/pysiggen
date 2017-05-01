@@ -5,6 +5,7 @@ import numpy as np
 import copy, math
 import ctypes
 from scipy import  signal, interpolate, ndimage
+import numbers
 
 from ._pysiggen import Siggen
 
@@ -335,6 +336,8 @@ class Detector:
         sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
     elif alignPoint == "max":
         sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples, doMaxInterp=doMaxInterp)
+    elif isinstance(alignPoint, numbers.Number):
+        sim_wf = self.ProcessWaveformByTimePoint( self.padded_siggen_data, switchpoint, alignPoint, numSamples, )
     return sim_wf
 ###########################################################################################################################
   def ApplyChargeTrapping(self, wf):
@@ -343,6 +346,71 @@ class Detector:
     charges_collected_idx = np.argmax(wf) + 1
     wf[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
     wf[charges_collected_idx:] = wf[charges_collected_idx-1]
+
+
+  def ProcessWaveformByTimePoint(self, siggen_wf, align_point, align_percent, outputLength):
+    siggen_len = self.num_steps + self.t0_padding
+    siggen_len_output = np.int(siggen_len/self.data_to_siggen_size_ratio)
+
+    temp_wf = self.temp_wf
+    temp_wf[0:siggen_len_output] = siggen_wf[::self.data_to_siggen_size_ratio]
+    temp_wf[siggen_len_output::] =  temp_wf[siggen_len_output-1]
+
+    # filter for the transfer function
+    temp_wf= signal.lfilter(self.num, self.den, temp_wf)
+    temp_wf /= self.dc_gain
+
+    #filter for the exponential decay
+    rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
+    temp_wf= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf)
+    temp_wf= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf)
+
+    #filter for low-pass filter on gretina card
+    if self.rc_int_exp is not None:
+        temp_wf= signal.lfilter([1,0], [1,-self.rc_int_exp], temp_wf)
+        temp_wf /= self.rc_int_gain
+
+    smax = np.amax(temp_wf)
+    if smax == 0:
+      return None
+
+    #linear interpolation to find the alignPointIdx: find the "real" alignpoint in the simualted array
+    alignarr = np.copy(temp_wf)/smax
+    first_idx = np.searchsorted(alignarr, align_percent, side='left') - 1
+    siggen_offset = (align_percent - alignarr[first_idx]) * (1) / (alignarr[first_idx+1] - alignarr[first_idx])
+
+    print (alignarr[first_idx-1], alignarr[first_idx])
+    print(first_idx)
+    print (siggen_offset)
+
+    #
+    align_point_ceil = np.int( np.ceil(align_point) )
+    start_idx = align_point_ceil - first_idx
+
+    if start_idx <0:
+        return None
+
+    self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
+
+    num_samples_to_fill = outputLength - start_idx
+    offset = align_point_ceil - align_point
+    sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
+
+    self.processed_siggen_data.fill(0.)
+    coarse_vals =   self.siggen_interp_fn(sampled_idxs)
+
+    try:
+        self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] = coarse_vals
+    except ValueError:
+        print( len(self.processed_siggen_data) )
+        print( start_idx)
+        print( num_samples_to_fill)
+        print( sampled_idxs)
+        exit(0)
+
+    return self.processed_siggen_data[:outputLength]
+
+
 ########################################################################################################
   def ProcessWaveformByMax(self, siggen_wf, align_point, outputLength, doMaxInterp=True):
     siggen_len = self.num_steps + self.t0_padding
