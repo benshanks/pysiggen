@@ -378,7 +378,7 @@ class Detector:
     alignarr = np.copy(temp_wf)/smax
     first_idx = np.searchsorted(alignarr, align_percent, side='left') - 1
 
-    if first_idx+1 == len(alignarr):
+    if first_idx+1 == len(alignarr) or first_idx <0:
         return None
 
     siggen_offset = (align_percent - alignarr[first_idx]) * (1) / (alignarr[first_idx+1] - alignarr[first_idx])
