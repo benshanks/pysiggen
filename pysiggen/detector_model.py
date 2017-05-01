@@ -379,10 +379,6 @@ class Detector:
     first_idx = np.searchsorted(alignarr, align_percent, side='left') - 1
     siggen_offset = (align_percent - alignarr[first_idx]) * (1) / (alignarr[first_idx+1] - alignarr[first_idx])
 
-    print (alignarr[first_idx-1], alignarr[first_idx])
-    print(first_idx)
-    print (siggen_offset)
-
     #
     align_point_ceil = np.int( np.ceil(align_point) )
     start_idx = align_point_ceil - first_idx
