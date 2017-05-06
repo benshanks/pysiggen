@@ -222,19 +222,19 @@ class Detector:
     taper_length = self.taper_length
     if r > np.floor(self.detector_radius*10.)/10. or z > np.floor(self.detector_length*10.)/10.:
       return 0
-    elif r <0 or z <=0:
+    if r <0 or z <=0:
       return 0
-    elif z < taper_length and r > (self.detector_radius - taper_length + z):
+    if z < taper_length and r > (self.detector_radius - taper_length + z):
       return 0
-    elif phi <0 or phi > np.pi/4:
+    if phi <0 or phi > np.pi/4:
       return 0
-    elif r**2/self.pcRad**2 + z**2/self.pcLen**2 < 1:
+    if r**2/self.pcRad**2 + z**2/self.pcLen**2 < 1:
       return 0
-    elif (z > (self.detector_length - self.top_bullet_radius) ) and (r > (self.detector_radius - self.top_bullet_radius) ):
-      if np.sqrt( (z - self.detector_length + self.top_bullet_radius)**2 + (r - self.detector_radius + self.top_bullet_radius)**2) > self.top_bullet_radius:
+    if (z > (self.detector_length - self.top_bullet_radius) ) and (r > (self.detector_radius - self.top_bullet_radius) ):
+      if np.sqrt( (z-self.detector_length  + self.top_bullet_radius)**2 + (r-self.detector_radius  + self.top_bullet_radius)**2) >= self.top_bullet_radius:
           return 0
-    else:
-      return 1
+
+    return 1
 ###########################################################################################################################
   def GetSimWaveform(self, r,phi,z,scale, switchpoint,  numSamples, smoothing=None):
     sig_wf = self.GetRawSiggenWaveform(r, phi, z)
@@ -254,11 +254,12 @@ class Detector:
 
     calcFlag = self.siggenInst.GetSignal(x, y, z, self.raw_siggen_data);
     if calcFlag == -1:
-#      print "Holes out of crystal alert! (%0.3f,%0.3f,%0.3f)" % (r,phi,z)
+    #   print ("Holes out of crystal alert! (%0.3f,%0.3f,%0.3f)" % (r,phi,z))
       return None
-    if np.amax(self.raw_siggen_data) == 0:
+    if not np.any(self.raw_siggen_data):
       print( "found zero wf at r={0}, phi={1}, z={2} (calcflag is {3})".format(r, phi, z, calcFlag) )
       return None
+
     return self.raw_siggen_data
 
 ###########################################################################################################################
