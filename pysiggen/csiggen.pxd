@@ -124,8 +124,15 @@ cdef extern from "mjd_siggen.h":
     float imp_grad_step;
     float avg_imp_step;
 
+    float min_pclen;
+    float min_pcrad;
+    float pclen_step;
+    float pcrad_step;
+
     int num_imps;
     int num_grads;
+    int num_pcrad;
+    int num_pclen;
 
     # data for calc_signal.c
     point *dpath_e
@@ -160,7 +167,7 @@ cdef extern from "fields.h":
   void set_temp(float temp, MJD_Siggen_Setup *setup);
   void set_hole_params(float h_100_mu0, float h_100_beta, float h_100_e0, float h_111_mu0, float h_111_beta, float h_111_e0, MJD_Siggen_Setup *setup);
   void set_k0_params(float k0_0, float k0_1, float k0_2, float k0_3, MJD_Siggen_Setup *setup);
-  float get_wpot_by_index(int row, int col, MJD_Siggen_Setup* setup );
-  float get_efld_r_by_index(int row, int col, int grad, int imp, MJD_Siggen_Setup* setup );
-  float get_efld_z_by_index(int row, int col, int grad, int imp, MJD_Siggen_Setup* setup );
+  float get_wpot_by_index(int row, int col, int pcrad, int pclen,MJD_Siggen_Setup* setup );
+  float get_efld_r_by_index(int row, int col, int grad, int imp, int pcrad, int pclen, MJD_Siggen_Setup* setup );
+  float get_efld_z_by_index(int row, int col, int grad, int imp, int pcrad, int pclen,  MJD_Siggen_Setup* setup );
   float get_mat_by_index(float* matrix,int row, int col, int num_cols);

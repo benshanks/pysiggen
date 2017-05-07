@@ -41,7 +41,9 @@ class Detector:
         (self.detector_radius, self.detector_length) = np.floor( [self.detector_radius*10, self.detector_length*10] )/10.
         self.taper_length = self.siggenInst.GetTaperLength()
         self.top_bullet_radius = self.siggenInst.GetTopBulletRadius()
-        (self.pcLen, self.pcRad) = self.siggenInst.GetPointContactDimensions()
+
+        #Just be real conservative, say anything <3 is in the PC (currently not fitting anything that close to the PC anyway)
+        (self.pcLen, self.pcRad) = 3#self.siggenInst.GetPointContactDimensions()
 
         # print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
@@ -105,7 +107,6 @@ class Detector:
       efld_zArray = data['efld_zArray']
       gradList = data['gradList']
 
-
     self.gradList = gradList
 
     if 'measured_imp' in data:
@@ -113,10 +114,15 @@ class Detector:
     if 'measured_grad' in data:
         self.measured_imp_grad = data['measured_grad']
 
+    self.impAvgList = None
+    self.pcRadList = None
+    self.pcLenList = None
     if 'impAvgList' in data:
         self.impAvgList = data['impAvgList']
-    else:
-        self.impAvgList = None
+    if 'pcRadList' in data:
+        self.pcRadList = data['pcRadList']
+    if 'pcLenList' in data:
+        self.pcLenList = data['pcLenList']
 
     self.wpArray = wpArray
     self.efld_rArray = efld_rArray
@@ -137,6 +143,11 @@ class Detector:
 
     self.siggenInst.SetGradParams(imp_grad_step, gradList[0], avg_grad_step, self.impAvgList[0], len(gradList), len(self.impAvgList))
 
+    if self.pcLenList is not None and self.pcRadList is not None:
+        rad_step = self.pcRadList[1] - self.pcRadList[0]
+        len_step = self.pcLenList[1] - self.pcLenList[0]
+        self.siggenInst.SetPointContactParams(rad_step, self.pcRadList[0], len_step, self.pcLenList[0], len(self.pcRadList), len(self.pcLenList))
+
     # print self.efld_rArray[30*10,30*10,0,0]
     # print self.efld_zArray[30*10,30*10,0,0]
     # # exit(0)
@@ -146,7 +157,15 @@ class Detector:
     # plt.imshow(self.efld_zArray[:,:,0,0])
     # plt.show()
 
+  def SetPointContact(self, pcrad, pclen):
+      if pcrad < self.pcRadList[0] or pcrad > self.pcRadList[-1]:
+          print( "pc rad {0} is out of range [{1},{2}]".format(pcrad, self.pcRadList[0], self.pcRadList[-1]) )
+          exit(0)
+      if pclen < self.pcLenList[0] or pclen > self.pcLenList[-1]:
+          print( "pclen {0} is out of range [{1},{2}]".format(pclen, self.pcLenList[0], self.pcLenList[-1]) )
+          exit(0)
 
+      self.siggenInst.SetPointContact(pcrad, pclen)
 
 
   def SetGrads(self, imp_grad, avg_imp):
@@ -154,7 +173,7 @@ class Detector:
           print( "impurity gradient {0} is out of range [{1},{2}]".format(imp_grad, self.gradList[0], self.gradList[-1]) )
           exit(0)
       if avg_imp < self.impAvgList[0] or avg_imp > self.impAvgList[-1]:
-          print( "avg impurity {0}} is out of range [{1},{2}]".format(avg_imp, self.impAvgList[0], self.impAvgList[-1]) )
+          print( "avg impurity {0} is out of range [{1},{2}]".format(avg_imp, self.impAvgList[0], self.impAvgList[-1]) )
           exit(0)
 
       self.siggenInst.SetGrads(imp_grad, avg_imp)

@@ -138,8 +138,15 @@ typedef struct {
   float imp_grad_step;
   float avg_imp_step;
 
+  float min_pclen;
+  float min_pcrad;
+  float pclen_step;
+  float pcrad_step;
+
   int num_imps;
   int num_grads;
+  int num_pcrad;
+  int num_pclen;
 
   // data for calc_signal.c
   point *dpath_e, *dpath_h;      // electron and hole drift paths

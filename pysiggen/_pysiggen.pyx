@@ -307,6 +307,17 @@ cdef class Siggen:
     self.fSiggenData.pc_radius = pcRad
     self.fSiggenData.pc_length = pcLen
 
+  def SetPointContactParams(self, pcrad_step, pcrad_min, pclen_step, pclen_min, num_pcrad, num_pclen):
+
+    self.fSiggenData.pcrad_step = pcrad_step
+    self.fSiggenData.pclen_step = pclen_step
+
+    self.fSiggenData.min_pclen = pclen_min
+    self.fSiggenData.min_pcrad = pcrad_min
+
+    self.fSiggenData.num_pcrad = num_pcrad
+    self.fSiggenData.num_pclen = num_pclen
+
   def SetGradParams(self, imp_grad_step, imp_grad_min, avg_imp_step, avg_imp_min, num_grads, num_imps):
     self.fSiggenData.imp_grad_step = imp_grad_step
     self.fSiggenData.min_imp_grad = imp_grad_min
@@ -321,29 +332,22 @@ cdef class Siggen:
     self.fSiggenData.imp_grad = imp_grad
     self.fSiggenData.avg_imp = avg_imp
 
-  def SetActiveEfld(self, np.ndarray[float, ndim=4, mode="c"] arr_r not None, np.ndarray[float, ndim=4, mode="c"] arr_z not None):
+  def SetActiveEfld(self, np.ndarray[float, ndim=6, mode="c"] arr_r not None, np.ndarray[float, ndim=6, mode="c"] arr_z not None):
     # for  (i) in range(self.fSiggenData.rlen):
     #   self.pWpot[i] = &input[0,0]
     # self.fSiggenData.wpot = self.pWpot
-    self.fSiggenData.efld_r = &arr_r[0,0,0,0]
+    self.fSiggenData.efld_r = &arr_r[0,0,0,0,0,0]
     # self.fSiggenData.efld_r = &self.efld_r_ptr
 
-    self.fSiggenData.efld_z = &arr_z[0,0,0,0]
+    self.fSiggenData.efld_z = &arr_z[0,0,0,0,0,0]
     # self.fSiggenData.efld_z = &self.efld_z_ptr
 
-  def SetActiveWpot(self, np.ndarray[float, ndim=2, mode="c"] input not None):
+  def SetActiveWpot(self, np.ndarray[float, ndim=4, mode="c"] input not None):
     # for  (i) in range(self.fSiggenData.rlen):
     # self.pWpot[i] = &input[i,0]
     # self.wp_ptr = &input[0,0]
-    self.fSiggenData.wpot = &input[0,0]
+    self.fSiggenData.wpot = &input[0,0,0,0]
 
-  # def ReadBackMatrix(self, np.ndarray[float, ndim=2, mode="c"] input not None):
-  #   cdef float* ptr =  &input[0,0]
-  #   array = np.empty((339, 394))
-  #   for i in range(array.shape[0]):
-  #     for j in range(array.shape[1]):
-  #       array[i,j] = csiggen.get_mat_by_index(ptr, i, j, 394)
-  #   return array
 
   # def PrintEfieldParams(self):
   #   print "grad step %f, imp step %f"  % ( self.fSiggenData.imp_grad_step, self.fSiggenData.avg_imp_step )
@@ -364,21 +368,21 @@ cdef class Siggen:
 
     # print "grad floor %f, imp floor %f" % (grad, imp)
 
-  def ReadWpot(self):
+  def ReadWpot(self,pcrad_idx, pclen_idx):
    array = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
    for i in range(array.shape[0]):
      for j in range(array.shape[1]):
-       array[i][j] = csiggen.get_wpot_by_index(i, j, &self.fSiggenData)
+       array[i][j] = csiggen.get_wpot_by_index(i, j,pcrad_idx, pclen_idx, &self.fSiggenData)
 
    return array
 
-  def ReadEFields(self, grad_idx, imp_idx):
+  def ReadEFields(self, grad_idx, imp_idx, pcrad_idx, pclen_idx):
     array_r = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
     array_z = np.empty((self.fSiggenData.rlen, self.fSiggenData.zlen))
     for i in range(array_r.shape[0]):
       for j in range(array_r.shape[1]):
-        array_r[i][j] = csiggen.get_efld_r_by_index(i, j, grad_idx, imp_idx, &self.fSiggenData)
-        array_z[i][j] = csiggen.get_efld_z_by_index(i, j, grad_idx, imp_idx, &self.fSiggenData)
+        array_r[i][j] = csiggen.get_efld_r_by_index(i, j, grad_idx, imp_idx, pcrad_idx, pclen_idx, &self.fSiggenData)
+        array_z[i][j] = csiggen.get_efld_z_by_index(i, j, grad_idx, imp_idx, pcrad_idx, pclen_idx,&self.fSiggenData)
 
     return array_r, array_z
 

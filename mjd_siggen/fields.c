@@ -36,7 +36,10 @@ static int find_hole_velo(float field, float theta, float phi, point* v_spher, M
 static float drift_velo_model(float E, float mu_0, float beta, float E_0);
 
 static cyl_pt get_efld_grad(int row, int col,  MJD_Siggen_Setup *setup);
+static cyl_pt get_efld_pc(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup);
+static float get_wpot_pc(int row, int col,  MJD_Siggen_Setup *setup);
 static int imp_weights( float out[2][2], MJD_Siggen_Setup *setup);
+static int pc_weights( float out[2][2], MJD_Siggen_Setup *setup);
 
 // static float get_wpot_by_index(int row, int col, MJD_Siggen_Setup* setup );
 // static float get_efld_r_by_index(int row, int col, MJD_Siggen_Setup* setup );
@@ -98,6 +101,9 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
   ipt.z = (pt.z - setup->zmin)/setup->zstep;
   imp = ( setup->avg_imp - setup->min_avg_imp  )/ setup->avg_imp_step  ;
   grad = ( setup->imp_grad - setup->min_imp_grad  )/ setup->imp_grad_step  ;
+  int  len, rad;
+  len = ( setup->pc_length - setup->min_pclen  )/ setup->pclen_step  ;
+  rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step  ;
 
 
   if (ipt.r < 0 || ipt.r + 1 >= setup->rlen ||
@@ -109,7 +115,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
       ir = ipt.r + i;
       for (j = 0; j < 2; j++){
         iz = ipt.z + j;
-        if (   get_efld_r_by_index(ir,iz,grad,imp, setup) == 0.0 && get_efld_z_by_index(ir,iz,grad,imp, setup) == 0.0) {
+        if (   get_efld_r_by_index(ir,iz,grad,imp, rad,len,setup) == 0.0 && get_efld_z_by_index(ir,iz,grad,imp,rad,len, setup) == 0.0) {
           // printf("point %s has no efield\n", ptstr);
           TELL_CHATTY("point %s has no efield\n", ptstr);
           return 0;
@@ -120,36 +126,43 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     return 1;
   }
 
-  float get_wpot_by_index(int row, int col, MJD_Siggen_Setup *setup){
+  float get_wpot_by_index(int row, int col,int pcrad, int pclen, MJD_Siggen_Setup *setup){
     int number_of_cols = setup->zlen;
-    // printf( "num of cols is %d\n" , number_of_cols);
-    return setup->wpot[row*number_of_cols + col];
+    int num_rad = setup->num_pcrad;
+    int num_len = setup->num_pclen;
+    return setup->wpot[row*number_of_cols*num_rad*num_len
+                        + col*num_rad*num_len
+                        +pcrad*num_len + pclen];
   }
 
-  float get_mat_by_index(float* matrix, int row, int col, int num_cols){
-    return matrix[row*num_cols + col];
-  }
-
-  float get_efld_r_by_index(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup){
+  float get_efld_r_by_index(int row, int col, int grad, int imp, int pcrad, int pclen, MJD_Siggen_Setup *setup){
     int number_of_cols = setup->zlen;
     int number_of_grads = setup->num_grads;
     int number_of_imps = setup->num_imps;
+    int num_rad = setup->num_pcrad;
+    int num_len = setup->num_pclen;
     // printf("cols %d, grads %d, imps %d\n", number_of_cols, number_of_grads, number_of_imps);
 
-    return setup->efld_r[row* (number_of_cols*number_of_imps*number_of_grads)
-                        + col*(number_of_imps*number_of_grads)
-                        + grad*(number_of_imps) + imp];
+    return setup->efld_r[row* (number_of_cols*number_of_imps*number_of_grads*num_rad*num_len)
+                        + col*(number_of_imps*number_of_grads*num_rad*num_len)
+                        + grad*(number_of_imps*num_rad*num_len)
+                        + imp*(num_rad*num_len)
+                        + pcrad*num_len + pclen];
   }
 
-  float get_efld_z_by_index(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup){
+  float get_efld_z_by_index(int row, int col, int grad, int imp, int pcrad, int pclen, MJD_Siggen_Setup *setup){
     int number_of_cols = setup->zlen;
     int number_of_grads = setup->num_grads;
     int number_of_imps = setup->num_imps;
+    int num_rad = setup->num_pcrad;
+    int num_len = setup->num_pclen;
     // TELL_CHATTY("z: looking for (%d,%d,%d,%d)\n", row, col, grad, imp);
 
-    return setup->efld_z[row* (number_of_cols*number_of_imps*number_of_grads)
-                        + col*(number_of_imps*number_of_grads)
-                        + grad*(number_of_imps) + imp];
+    return setup->efld_z[row* (number_of_cols*number_of_imps*number_of_grads*num_rad*num_len)
+                        + col*(number_of_imps*number_of_grads*num_rad*num_len)
+                        + grad*(number_of_imps*num_rad*num_len)
+                        + imp*(num_rad*num_len)
+                        + pcrad*num_len + pclen];
 
   }
 
@@ -172,49 +185,21 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     *wp = 0.0;
     for (i = 0; i < 2; i++){
       for (j = 0; j < 2; j++){
-        *wp += w[i][j]* get_wpot_by_index(ipt.r+i, ipt.z+j, setup );
+        // *wp += w[i][j]* get_wpot_by_index(ipt.r+i, ipt.z+j, setup );
         // *wp += w[i][j]* setup->wpot[ipt.r+i][ipt.z+j];
+
+        if((setup->num_pcrad == 1) && (setup->num_pclen == 1)){
+          *wp += w[i][j]* get_wpot_by_index(ipt.r+i, ipt.z+j, 0,0, setup );
+        }
+        else{
+          *wp +=  w[i][j]*get_wpot_pc(ipt.r+i, ipt.z+j,  setup);
+        }
       }
     }
-
+    // printf("higher wpot %f\n", *wp);
     return 0;
   }
 
-  /* drift_velocity
-  calculates drift velocity for charge q at point pt
-  returns 0 on success, 1 on success but extrapolation was necessary,
-  and -1 for failure
-  anisotropic drift: crystal axes are assumed to be (x,y,z)
-  */
-
-  //int drift_velocity_ben(point pt, float q, vector *velo, MJD_Siggen_Setup *setup){
-  //  point  cart_en;
-  //  cyl_pt e, en, cyl;
-  //  cyl_int_pt ipt;
-  //  float abse;
-  //
-  //  cyl.r = sqrt(pt.x*pt.x + pt.y*pt.y);
-  //  cyl.z = pt.z;
-  //  cyl.phi = 0;
-  //  if (nearest_field_grid_index(cyl, &ipt, setup) < 0) return -1;
-  //  e = efield(cyl, ipt, setup);
-  //  abse = vector_norm_cyl(e, &en);
-  //  if (cyl.r > 0.001) {
-  //    cart_en.x = en.r * pt.x/cyl.r;
-  //    cart_en.y = en.r * pt.y/cyl.r;
-  //  } else {
-  //    cart_en.x = cart_en.y = 0;
-  //  }
-  //  cart_en.z = en.z;
-  //
-  //  //So the (cartesian) field is in cart_en, and we want the velo at (cartesian) point pt
-  ////  Py_Initialize();
-  ////  initsiggen();
-  ////  drift_velocity_python(pt, cart_en, q, velo, setup);
-  ////  printf("velo: %f, %f,%f \n", velo->x, velo->y, velo->z);
-  ////  Py_Finalize();
-  //  return 0;
-  //}
 
   int drift_velocity(point pt, float q, vector *velo, MJD_Siggen_Setup *setup){
     point  cart_en;
@@ -266,15 +251,10 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
         velo->y = sin(phi)*sin(theta)*velo_local.x + sin(phi)*cos(theta)*velo_local.y + cos(phi)*velo_local.z;
         velo->z = cos(theta)*velo_local.x - sin(theta)*velo_local.y;
 
-        //now rotate back to cartesian coords (this is the old way which I'm nearly certain is wrong)
-        // velo->x = sin(theta)*cos(phi) * velo_local.x + cos(theta)*cos(phi) * velo_local.y - sin(theta)*sin(phi) * velo_local.z;
-        // velo->y = sin(theta)*sin(phi) * velo_local.x + cos(theta)*sin(phi) * velo_local.y + sin(theta)*cos(phi) * velo_local.z;
-        // velo->z = cos(theta) * velo_local.x - sin(theta) * velo_local.y;
-
         return 0;
       }
       else{
-        printf("warning!  using david's hole velo calculation!\n");
+        printf("warning!  using siggen's hole velo calculation!\n");
       }
     }
 
@@ -320,6 +300,7 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
 
   static cyl_pt get_efld_grad(int row, int col,  MJD_Siggen_Setup *setup){
     cyl_pt e = {0,0,0};
+    cyl_pt e_tmp;
 
     float  w[2][2];
     imp_weights( w, setup);
@@ -332,12 +313,63 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     for ( i = 0; i < 2; i++){
       for ( j = 0; j < 2; j++){
         // printf("getting (%d,%d,%d,%d) weight %f\n",row, col, grad+i, imp+j,w[i][j]);
-        e.r += w[i][j]* get_efld_r_by_index(row, col, grad+i, imp+j, setup );
-        e.z += w[i][j]* get_efld_z_by_index(row, col, grad+i, imp+j, setup );
+        if((setup->num_pcrad == 1) && (setup->num_pclen == 1)){
+          e.r += w[i][j]* get_efld_r_by_index(row, col, grad+i, imp+j, 0,0, setup );
+          e.z += w[i][j]* get_efld_z_by_index(row, col, grad+i, imp+j, 0,0,setup );
+        }
+        else{
+          e_tmp = get_efld_pc(row, col, grad + i, imp + j,  setup);
+          e.r += e_tmp.r*w[i][j];
+          e.z += e_tmp.z*w[i][j];
+        }
       }
     }
     return e;
   }
+
+  static cyl_pt get_efld_pc(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup){
+    cyl_pt e = {0,0,0};
+
+    float  w[2][2];
+    pc_weights( w, setup);
+
+    int i, j;
+    int  len, rad;
+    len = ( setup->pc_length - setup->min_pclen  )/ setup->pclen_step  ;
+    rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step  ;
+
+    for ( i = 0; i < 2; i++){
+      for ( j = 0; j < 2; j++){
+        // printf("getting (%d,%d,%d,%d) weight %f\n",row, col, grad+i, imp+j,w[i][j]);
+        e.r += w[i][j]* get_efld_r_by_index(row, col, grad, imp, rad+i, len+j, setup );
+        e.z += w[i][j]* get_efld_z_by_index(row, col, grad, imp, rad+i, len+j, setup );
+      }
+    }
+    return e;
+  }
+
+
+    static float get_wpot_pc(int row, int col, MJD_Siggen_Setup *setup){
+      float  w[2][2];
+      pc_weights( w, setup);
+
+      int i, j;
+      int  len, rad;
+      len = ( setup->pc_length - setup->min_pclen  )/ setup->pclen_step  ;
+      rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step  ;
+
+      float wp = 0.;
+
+      for ( i = 0; i < 2; i++){
+        for ( j = 0; j < 2; j++){
+          // printf("getting (%d,%d,%d,%d) weight %f...",row, col, rad+i, len+j,w[i][j]);
+          // printf("   wp %f\n",get_wpot_by_index(row, col,  rad+i, len+j, setup ));
+          wp += w[i][j]* get_wpot_by_index(row, col, rad+i, len+j, setup );
+        }
+      }
+      // printf("interp wpot %f\n", wp);
+      return wp;
+    }
 
   /* Find (interpolated or extrapolated) electric field for this point */
   static cyl_pt efield(cyl_pt pt, cyl_int_pt ipt, MJD_Siggen_Setup *setup){
@@ -405,6 +437,23 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
         out[1][1] =        grad  *        imp;
         return 0;
       }
+
+      static int pc_weights( float out[2][2], MJD_Siggen_Setup *setup){
+          float  rad, len;
+
+          int  i_rad, i_len;
+          i_rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step   ;
+          i_len = ( setup->pc_length - setup->min_pclen  )/  setup->pclen_step  ;
+
+          rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step   - i_rad ;
+          len = ( setup->pc_length - setup->min_pclen  )/  setup->pclen_step  - i_len  ;
+
+          out[0][0] = (1.0 - rad) * (1.0 - len);
+          out[0][1] = (1.0 - rad) *        len;
+          out[1][0] =        rad  * (1.0 - len);
+          out[1][1] =        rad  *        len;
+          return 0;
+        }
 
 
       /*find existing integer field grid index closest to pt*/
