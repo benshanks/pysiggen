@@ -43,7 +43,7 @@ class Detector:
         self.top_bullet_radius = self.siggenInst.GetTopBulletRadius()
 
         #Just be real conservative, say anything <3 is in the PC (currently not fitting anything that close to the PC anyway)
-        (self.pcLen, self.pcRad) = 3#self.siggenInst.GetPointContactDimensions()
+        (self.pcLen, self.pcRad) = 3,3#self.siggenInst.GetPointContactDimensions()
 
         # print "radius is %f, length is %f" % (self.detector_radius, self.detector_length)
 
