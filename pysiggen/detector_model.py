@@ -302,7 +302,7 @@ class Detector:
 
     return output_array
 ###########################################################################################################################
-  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
+  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2 =None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -323,9 +323,9 @@ class Detector:
     if electron_wf is  None:
       return None
 
-    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, alignPoint, trapType, doMaxInterp)
+    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp)
 ###########################################################################################################################
-  def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
+  def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2=None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
       #this is for parallel computing, to allow hole and electron wfs to be separately calculated
 
     if hole_wf is None or electron_wf is None:
@@ -351,6 +351,16 @@ class Detector:
     #gaussian smoothing
     if h_smoothing is not None:
       ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing, output=self.padded_siggen_data)
+    if h_smoothing2 is not None:
+      sig = h_smoothing2[0]
+      p = h_smoothing2[1]
+      window = signal.general_gaussian(np.int(np.ceil(sig)*4), sig=sig, p=p, )
+      window /= np.sum(window)
+
+      pad = len(window)
+      wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
+      wf_pad= signal.convolve(wf_pad, window, 'same')
+      self.padded_siggen_data = wf_pad[pad:-pad]
 
     if alignPoint == "t0":
         sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
@@ -523,45 +533,49 @@ class Detector:
   def ProcessWaveform(self, siggen_wf,  switchpoint, outputLength):
     '''Use interpolation instead of rounding'''
 
+    self.processed_siggen_data.fill(0.)
+
     siggen_len = self.num_steps + self.t0_padding
     siggen_len_output = siggen_len/self.data_to_siggen_size_ratio
 
-    #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
-    switchpoint_ceil= np.int( np.ceil(switchpoint) )
-
-    # print( "siggen len output is %d" % siggen_len_output
-
-    pad_space = outputLength - siggen_len_output
-    # print "padspace minus switch %d" % (pad_space - switchpoint_ceil)
-
-    if pad_space - switchpoint_ceil  < 0 :
-        num_samples_to_fill = siggen_len_output - (switchpoint_ceil-pad_space)
+    if switchpoint == 0:
+        print("Not currently working to time-align at t=0 :(")
+        exit(0)
     else:
-        num_samples_to_fill = siggen_len_output - 1
+        #resample the siggen wf to the 10ns digitized data frequency w/ interpolaiton
+        switchpoint_ceil= np.int( np.ceil(switchpoint) )
 
-    self.siggen_interp_fn = interpolate.interp1d(np.arange(siggen_len ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
-    siggen_start_idx = (switchpoint_ceil - switchpoint) * self.data_to_siggen_size_ratio
-    sampled_idxs = np.arange(num_samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
+        # print( "siggen len output is %d" % siggen_len_output
 
-    # print "switchpoint ceil is %d" % switchpoint_ceil
-    # print "siggen_start_idx is %d" % siggen_start_idx
-    # print  sampled_idxs
+        pad_space = outputLength - siggen_len_output
+        # print "padspace minus switch %d" % (pad_space - switchpoint_ceil)
 
-    self.processed_siggen_data.fill(0.)
+        if pad_space - switchpoint_ceil  < 0 :
+            num_samples_to_fill = siggen_len_output - (switchpoint_ceil-pad_space)
+        else:
+            num_samples_to_fill = siggen_len_output - 1
 
-    try:
-      self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = self.siggen_interp_fn(sampled_idxs)
-      self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)-1]
-    except ValueError:
-      print("Something goofy happened here during interp")
-      print("siggen len output is {0} (calculated is {1})".format(siggen_len_output, siggen_wf.size) )
-      print("desired output length is {0}".format(outputLength))
-      print( "switchpoint is {0}".format(switchpoint))
-      print( "siggen start idx is {0}".format(siggen_start_idx))
-      print( "num samples to fill is {0}".format(num_samples_to_fill))
-      print( sampled_idxs)
-      exit(0)
-    #   return None
+        self.siggen_interp_fn = interpolate.interp1d(np.arange(siggen_len ), siggen_wf, kind="linear", copy="False", assume_sorted="True")
+        siggen_start_idx = (switchpoint_ceil - switchpoint) * self.data_to_siggen_size_ratio
+        sampled_idxs = np.arange(num_samples_to_fill)*self.data_to_siggen_size_ratio + siggen_start_idx
+
+        # print "switchpoint ceil is %d" % switchpoint_ceil
+        # print "siggen_start_idx is %d" % siggen_start_idx
+        # print  sampled_idxs
+
+        try:
+          self.processed_siggen_data[switchpoint_ceil:switchpoint_ceil+len(sampled_idxs)] = self.siggen_interp_fn(sampled_idxs)
+          self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)::] = self.processed_siggen_data[switchpoint_ceil+len(sampled_idxs)-1]
+        except ValueError:
+          print("Something goofy happened here during interp")
+          print("siggen len output is {0} (calculated is {1})".format(siggen_len_output, siggen_wf.size) )
+          print("desired output length is {0}".format(outputLength))
+          print( "switchpoint is {0}".format(switchpoint))
+          print( "siggen start idx is {0}".format(siggen_start_idx))
+          print( "num samples to fill is {0}".format(num_samples_to_fill))
+          print( sampled_idxs)
+          exit(0)
+        #   return None
 
     #filter for the damped oscillation
     self.processed_siggen_data[switchpoint_ceil-1:outputLength]= signal.lfilter(self.num, self.den, self.processed_siggen_data[switchpoint_ceil-1:outputLength])
