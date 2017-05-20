@@ -302,7 +302,8 @@ class Detector:
 
     return output_array
 ###########################################################################################################################
-  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2 =None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
+  def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2 =None,
+                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear"):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -323,9 +324,10 @@ class Detector:
     if electron_wf is  None:
       return None
 
-    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp)
+    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp, interpType)
 ###########################################################################################################################
-  def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2=None, alignPoint="t0", trapType="holesOnly", doMaxInterp=True):
+  def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2=None,
+                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear"):
       #this is for parallel computing, to allow hole and electron wfs to be separately calculated
 
     if hole_wf is None or electron_wf is None:
@@ -367,7 +369,7 @@ class Detector:
     elif alignPoint == "max":
         sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples, doMaxInterp=doMaxInterp)
     elif isinstance(alignPoint, numbers.Number):
-        sim_wf = self.ProcessWaveformByTimePoint( self.padded_siggen_data, switchpoint, alignPoint, numSamples, )
+        sim_wf = self.ProcessWaveformByTimePoint( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
     return sim_wf
 ###########################################################################################################################
   def ApplyChargeTrapping(self, wf):
@@ -378,7 +380,7 @@ class Detector:
     wf[charges_collected_idx:] = wf[charges_collected_idx-1]
 
 
-  def ProcessWaveformByTimePoint(self, siggen_wf, align_point, align_percent, outputLength):
+  def ProcessWaveformByTimePoint(self, siggen_wf, align_point, align_percent, outputLength, interpType="linear"):
     siggen_len = self.num_steps + self.t0_padding
     siggen_len_output = np.int(siggen_len/self.data_to_siggen_size_ratio)
 
@@ -420,7 +422,7 @@ class Detector:
     if start_idx <0:
         return None
 
-    self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind="linear", copy="False", assume_sorted="True")
+    self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind=interpType, copy="False", assume_sorted="True")
 
     num_samples_to_fill = outputLength - start_idx
     offset = align_point_ceil - align_point
