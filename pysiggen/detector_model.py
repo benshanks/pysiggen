@@ -243,7 +243,7 @@ class Detector:
 
       self.num = [a, b, 0.]
       self.den = [1., 2*c, d**2]
-      self.dc_gain = (a+b) / (1 + c + d)
+      self.dc_gain = (a+b) / (1 + 2*c + d**2)
 
       RC1= 1E-6 * (RC1_in_us)
       self.rc1_for_tf = np.exp(-1./digPeriod/RC1)
