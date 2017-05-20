@@ -95,6 +95,7 @@ class Detector:
         self.siggen_interp_fn = None
         self.signal_peak_fn = None
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
+        self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*10, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFieldsGrad(self, fieldFileName,):
@@ -198,15 +199,12 @@ class Detector:
 
     self.siggenInst.SetTemperature(h_temp, e_temp)
 ###########################################################################################################################
-  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False, isOld=False, num_gain  = 1.):
+  def SetTransferFunction(self, b, c, d, RC1_in_us, RC2_in_us, rc1_frac, isDirect=False, num_gain  = 1., digPeriod = 1E8):
     #the (a + b)/(1 + 2c + d**2) sets the gain of the system
     #we don't really care about the gain, so just set b, and keep the sum a+b
     #at some arbitrary constant (100 here), and divide out the total gain later
 
-    if isOld:
-        a= 1
-    else:
-        a = num_gain - b
+    a = num_gain - b
 
     if not isDirect:
         c = 2*c
@@ -217,10 +215,10 @@ class Detector:
     self.dc_gain = (a+b) / (1 + c + d)
 
     RC1= 1E-6 * (RC1_in_us)
-    self.rc1_for_tf = np.exp(-1./1E8/RC1)
+    self.rc1_for_tf = np.exp(-1./digPeriod/RC1)
 
     RC2 = 1E-6 * (RC2_in_us)
-    self.rc2_for_tf = np.exp(-1./1E8/RC2)
+    self.rc2_for_tf = np.exp(-1./digPeriod/RC2)
 
     self.rc1_frac = rc1_frac
 
@@ -236,6 +234,26 @@ class Detector:
   def SetTransferFunctionByTF(self, num, den):
     #should already be discrete params
     (self.num, self.den) = (num, den)
+
+  def SetTransferFunctionPhi(self, phi, omega, d, RC1_in_us, RC2_in_us, rc1_frac, digPeriod  = 1E8):
+      c = -d * np.cos(omega)
+      b_ov_a = c - np.tan(phi) * np.sqrt(d**2-c**2)
+      a = 1./(1+b_ov_a)
+      b = a * b_ov_a
+
+      self.num = [a, b, 0.]
+      self.den = [1., 2*c, d**2]
+      self.dc_gain = (a+b) / (1 + c + d)
+
+      RC1= 1E-6 * (RC1_in_us)
+      self.rc1_for_tf = np.exp(-1./digPeriod/RC1)
+
+      RC2 = 1E-6 * (RC2_in_us)
+      self.rc2_for_tf = np.exp(-1./digPeriod/RC2)
+
+      self.rc1_frac = rc1_frac
+
+
 ###########################################################################################################################
   def IsInDetector(self, r, phi, z):
     taper_length = self.taper_length
@@ -369,7 +387,7 @@ class Detector:
     elif alignPoint == "max":
         sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples, doMaxInterp=doMaxInterp)
     elif isinstance(alignPoint, numbers.Number):
-        sim_wf = self.ProcessWaveformByTimePoint( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
+        sim_wf = self.ProcessWaveformByTimePointFine( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
     return sim_wf
 ###########################################################################################################################
   def ApplyChargeTrapping(self, wf):
@@ -379,6 +397,67 @@ class Detector:
     wf[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
     wf[charges_collected_idx:] = wf[charges_collected_idx-1]
 
+
+  def ProcessWaveformByTimePointFine(self, siggen_wf, align_point, align_percent, outputLength, interpType="linear"):
+    # print("FINE!")
+    # siggen_len = self.num_steps + self.t0_padding
+    # siggen_len_output = np.int(siggen_len/self.data_to_siggen_size_ratio)
+    temp_wf_sig = self.temp_wf_sig
+    temp_wf_sig[0:len(siggen_wf)] = siggen_wf
+    temp_wf_sig[len(siggen_wf):] = siggen_wf[-1]
+
+    # filter for the transfer function
+    temp_wf_sig= signal.lfilter(self.num, self.den, temp_wf_sig)
+    temp_wf_sig /= self.dc_gain
+
+    #filter for the exponential decay
+    rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
+    temp_wf_sig= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf_sig)
+    temp_wf_sig= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf_sig)
+
+    smax = np.amax(temp_wf_sig)
+    if smax == 0:
+      return None
+
+    #now downsample it
+    temp_wf = self.temp_wf
+    temp_wf[:] = temp_wf_sig[::10]
+
+    #linear interpolation to find the alignPointIdx: find the "real" alignpoint in the simualted array
+    alignarr = np.copy(temp_wf)/smax
+    first_idx = np.searchsorted(alignarr, align_percent, side='left') - 1
+
+    if first_idx+1 == len(alignarr) or first_idx <0:
+        return None
+
+    siggen_offset = (align_percent - alignarr[first_idx]) * (1) / (alignarr[first_idx+1] - alignarr[first_idx])
+
+    #
+    align_point_ceil = np.int( np.ceil(align_point) )
+    start_idx = align_point_ceil - first_idx
+
+    if start_idx <0:
+        return None
+
+    self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind=interpType, copy="False", assume_sorted="True")
+
+    num_samples_to_fill = outputLength - start_idx
+    offset = align_point_ceil - align_point
+    sampled_idxs = np.arange(num_samples_to_fill) + offset + siggen_offset
+
+    self.processed_siggen_data.fill(0.)
+    coarse_vals =   self.siggen_interp_fn(sampled_idxs)
+
+    try:
+        self.processed_siggen_data[start_idx:start_idx+num_samples_to_fill] = coarse_vals
+    except ValueError:
+        print( len(self.processed_siggen_data) )
+        print( start_idx)
+        print( num_samples_to_fill)
+        print( sampled_idxs)
+        exit(0)
+
+    return self.processed_siggen_data[:outputLength]
 
   def ProcessWaveformByTimePoint(self, siggen_wf, align_point, align_percent, outputLength, interpType="linear"):
     siggen_len = self.num_steps + self.t0_padding
