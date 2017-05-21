@@ -381,7 +381,7 @@ class Detector:
 ###########################################################################################################################
   def ApplyChargeTrapping(self, wf):
 
-    period = 1E8 * self.sdata_to_siggen_size_ratio
+    period = 1E8 * self.data_to_siggen_size_ratio
 
     trapping_rc = self.trapping_rc * 1E-6
     trapping_rc_exp = np.exp(-1./period/trapping_rc)
