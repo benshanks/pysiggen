@@ -226,15 +226,18 @@ class Detector:
     #should already be discrete params
     (self.num, self.den) = (num, den)
 
-  def SetTransferFunctionPhi(self, phi, omega, d, RC1_in_us, RC2_in_us, rc1_frac, digPeriod  = 1E8):
+  def SetTransferFunctionPhi(self, phi, omega, d, RC1_in_us, RC2_in_us, rc1_frac, digPeriod  = 1E8, num0=0):
       c = -d * np.cos(omega)
       b_ov_a = c - np.tan(phi) * np.sqrt(d**2-c**2)
-      a = 1./(1+b_ov_a)
+
+      den_gain = (1 + 2*c + d**2)
+
+      a = (1 - num0 )/(1+b_ov_a)
       b = a * b_ov_a
 
-      self.num = [a, b, 0.]
+      self.num = [a, b, num0]
       self.den = [1., 2*c, d**2]
-      self.dc_gain = (a+b) / (1 + 2*c + d**2)
+      self.dc_gain = (a+b+num0) / (1 + 2*c + d**2)
 
       RC1= 1E-6 * (RC1_in_us)
       self.rc1_for_tf = np.exp(-1./digPeriod/RC1)
