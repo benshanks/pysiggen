@@ -72,18 +72,7 @@ class Detector:
         #stuff for waveform interpolation
         #round here to fix floating point accuracy problem
         data_to_siggen_size_ratio = np.around(10. / self.time_step_size,3)
-        if not data_to_siggen_size_ratio.is_integer():
-          print( "Error: siggen step size must evenly divide into 10 ns digitization period (ratio is {0})".format(data_to_siggen_size_ratio) )
-          exit(0)
-        elif data_to_siggen_size_ratio < 10:
-          round_places = 0
-        elif data_to_siggen_size_ratio < 100:
-          round_places = 1
-        elif data_to_siggen_size_ratio < 1000:
-          round_places = 2
-        else:
-          print( "Error: Ben was too lazy to code in support for resolution this high" )
-          exit(0)
+
         self.data_to_siggen_size_ratio = np.int(data_to_siggen_size_ratio)
 
         #Holders for wf simulation
@@ -95,7 +84,7 @@ class Detector:
         self.siggen_interp_fn = None
         self.signal_peak_fn = None
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
-        self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*10, dtype=np.dtype('f4'), order="C" )
+        self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*self.data_to_siggen_size_ratio, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFieldsGrad(self, fieldFileName,):
@@ -391,8 +380,11 @@ class Detector:
     return sim_wf
 ###########################################################################################################################
   def ApplyChargeTrapping(self, wf):
+
+    period = 1E8 * self.sdata_to_siggen_size_ratio
+
     trapping_rc = self.trapping_rc * 1E-6
-    trapping_rc_exp = np.exp(-1./1E9/trapping_rc)
+    trapping_rc_exp = np.exp(-1./period/trapping_rc)
     charges_collected_idx = np.argmax(wf) + 1
     wf[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
     wf[charges_collected_idx:] = wf[charges_collected_idx-1]
@@ -421,7 +413,7 @@ class Detector:
 
     #now downsample it
     temp_wf = self.temp_wf
-    temp_wf[:] = temp_wf_sig[::10]
+    temp_wf[:] = temp_wf_sig[::self.data_to_siggen_size_ratio]
 
     #linear interpolation to find the alignPointIdx: find the "real" alignpoint in the simualted array
     alignarr = np.copy(temp_wf)/smax
