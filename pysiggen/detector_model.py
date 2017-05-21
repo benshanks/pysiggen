@@ -128,14 +128,16 @@ class Detector:
     self.siggenInst.SetActiveWpot(self.wpArray)
     self.siggenInst.SetActiveEfld(self.efld_rArray, self.efld_zArray)
 
-    imp_grad_step = gradList[1] - gradList[0]
-    avg_grad_step = self.impAvgList[1] - self.impAvgList[0]
+    imp_grad_step, avg_grad_step = 0., 0.
+    if len(gradList) > 1: imp_grad_step = gradList[1] - gradList[0]
+    if len(self.impAvgList) > 1:  avg_grad_step = self.impAvgList[1] - self.impAvgList[0]
 
     self.siggenInst.SetGradParams(imp_grad_step, gradList[0], avg_grad_step, self.impAvgList[0], len(gradList), len(self.impAvgList))
 
     if self.pcLenList is not None and self.pcRadList is not None:
-        rad_step = self.pcRadList[1] - self.pcRadList[0]
-        len_step = self.pcLenList[1] - self.pcLenList[0]
+        rad_step, len_step = 0., 0.
+        if len(self.pcRadList) > 1: rad_step = self.pcRadList[1] - self.pcRadList[0]
+        if len(self.pcLenList) > 1: len_step = self.pcLenList[1] - self.pcLenList[0]
         self.siggenInst.SetPointContactParams(rad_step, self.pcRadList[0], len_step, self.pcLenList[0], len(self.pcRadList), len(self.pcLenList))
 
     # print self.efld_rArray[30*10,30*10,0,0]

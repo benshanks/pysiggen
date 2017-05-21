@@ -302,6 +302,12 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
     cyl_pt e = {0,0,0};
     cyl_pt e_tmp;
 
+    if ((setup->num_grads ==0) || (setup->num_imps == 0)){
+      e.r += get_efld_r_by_index(row, col, 0, 0, 0,0, setup );
+      e.z += get_efld_z_by_index(row, col, 0, 0, 0,0, setup );
+      return e;
+    }
+
     float  w[2][2];
     imp_weights( w, setup);
 
@@ -330,6 +336,12 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
   static cyl_pt get_efld_pc(int row, int col, int grad, int imp, MJD_Siggen_Setup *setup){
     cyl_pt e = {0,0,0};
 
+    if ((setup->num_pcrad ==0) || (setup->num_pclen == 0)){
+      e.r += get_efld_r_by_index(row, col, grad, imp, 0,0, setup );
+      e.z += get_efld_z_by_index(row, col, grad, imp, 0,0, setup );
+      return e;
+    }
+
     float  w[2][2];
     pc_weights( w, setup);
 
@@ -350,6 +362,11 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
 
 
     static float get_wpot_pc(int row, int col, MJD_Siggen_Setup *setup){
+
+      if ((setup->num_pcrad ==0) || (setup->num_pclen == 0)){
+        return get_wpot_by_index(row, col, 0, 0, setup );
+      }
+
       float  w[2][2];
       pc_weights( w, setup);
 
@@ -359,7 +376,6 @@ static int efield_exists(cyl_pt pt, MJD_Siggen_Setup *setup){
       rad = ( setup->pc_radius  - setup->min_pcrad  )/ setup->pcrad_step  ;
 
       float wp = 0.;
-
       for ( i = 0; i < 2; i++){
         for ( j = 0; j < 2; j++){
           // printf("getting (%d,%d,%d,%d) weight %f...",row, col, rad+i, len+j,w[i][j]);
