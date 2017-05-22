@@ -248,6 +248,32 @@ class Detector:
       self.rc1_frac = rc1_frac
 
 
+  def SetTransferFunctionGain(self, phi, omega, gain, RC1_in_us, RC2_in_us, rc1_frac, digPeriod  = 1E8):
+
+    g =  1 - 1./gain
+
+    cd = - np.cos(omega)
+    dc = 1./cd
+    dc2 = (dc)**2
+
+    c = (-2 + np.sqrt(4 - 4*dc2*g  )) / (2*dc2)
+    d = dc * c
+
+    ba = c - np.tan(phi)*np.sqrt(d**2-c**2)
+
+    self.num = [1,ba,0]
+    self.den =  [1.0, 2*c, d**2]
+    self.dc_gain = np.sum(self.num)/np.sum(self.den)
+
+    RC1= 1E-6 * (RC1_in_us)
+    self.rc1_for_tf = np.exp(-1./digPeriod/RC1)
+
+    RC2 = 1E-6 * (RC2_in_us)
+    self.rc2_for_tf = np.exp(-1./digPeriod/RC2)
+
+    self.rc1_frac = rc1_frac
+
+
 ###########################################################################################################################
   def IsInDetector(self, r, phi, z):
     taper_length = self.taper_length
