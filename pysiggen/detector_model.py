@@ -78,13 +78,14 @@ class Detector:
         #Holders for wf simulation
         self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
         self.padded_siggen_data = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
+        self.trapped_wf = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
+
         self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
         self.processed_siggen_data = np.zeros( self.wf_output_length, dtype=np.dtype('f4'), order="C" )
 
         self.siggen_interp_fn = None
         self.signal_peak_fn = None
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
-        self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*self.data_to_siggen_size_ratio, dtype=np.dtype('f4'), order="C" )
 
 ###########################################################################################################################
   def LoadFieldsGrad(self, fieldFileName,):
@@ -410,16 +411,36 @@ class Detector:
         sim_wf = self.ProcessWaveformByTimePointFine( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
     return sim_wf
 ###########################################################################################################################
-  def ApplyChargeTrapping(self, wf):
 
-    period = 1E8 * self.data_to_siggen_size_ratio
+  def SetTrapping(self, trapping_rc, release_rc, period = 1E9):
+    trapping_rc = trapping_rc * 1E-6
+    self.trapping_rc_exp = np.exp(-1./period/trapping_rc)
 
-    trapping_rc = self.trapping_rc * 1E-6
-    trapping_rc_exp = np.exp(-1./period/trapping_rc)
+    release_rc = release_rc * 1E-9
+    self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
+
+  def ApplyChargeTrapping(self, wf, trapping_rc, release_rc):
+    wf_trapped = self.trapped_wf
+
+    trapping_rc_exp = self.trapping_rc_exp
+    release_time_exp = self.release_time_exp
+
     charges_collected_idx = np.argmax(wf) + 1
-    wf[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
-    wf[charges_collected_idx:] = wf[charges_collected_idx-1]
 
+    wf_trapped[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
+    wf_trapped[charges_collected_idx:] = wf_trapped[charges_collected_idx-1]
+
+    # trapped_charge[:charges_collected_idx]= signal.lfilter([1., 0], [1., -trapping_rc_exp], wf[:charges_collected_idx])
+    # trapped_charge[charges_collected_idx:] = trapped_charge[charges_collected_idx-1]
+    # trapped_charge *= (1-trapping_rc_exp)
+
+    #uh, ok, now lets re-release it?  but only the trapped charge??
+
+    wf = signal.lfilter([1., 0], [1., -release_time_exp], (wf-wf_trapped)))
+    wf *= (1- release_time_exp)
+    wf += wf_trapped
+
+    return wf
 
   def ProcessWaveformByTimePointFine(self, siggen_wf, align_point, align_percent, outputLength, interpType="linear"):
     # print("FINE!")
