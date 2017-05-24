@@ -416,8 +416,11 @@ class Detector:
     trapping_rc = trapping_rc * 1E-6
     self.trapping_rc_exp = np.exp(-1./period/trapping_rc)
 
-    release_rc = release_rc * 1E-9
-    self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
+    if release_rc is None:
+        self.release_time_exp = None
+    else:
+        release_rc = release_rc * 1E-9
+        self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
 
   def ApplyChargeTrapping(self, wf):
     wf_trapped = self.trapped_wf
@@ -429,6 +432,10 @@ class Detector:
 
     wf_trapped[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
     wf_trapped[charges_collected_idx:] = wf_trapped[charges_collected_idx-1]
+
+    if release_time_exp is None:
+        wf[:] = wf_trapped[:]
+        return wf
 
     # trapped_charge[:charges_collected_idx]= signal.lfilter([1., 0], [1., -trapping_rc_exp], wf[:charges_collected_idx])
     # trapped_charge[charges_collected_idx:] = trapped_charge[charges_collected_idx-1]
