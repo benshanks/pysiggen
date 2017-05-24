@@ -419,7 +419,7 @@ class Detector:
     release_rc = release_rc * 1E-9
     self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
 
-  def ApplyChargeTrapping(self, wf, trapping_rc, release_rc):
+  def ApplyChargeTrapping(self, wf):
     wf_trapped = self.trapped_wf
 
     trapping_rc_exp = self.trapping_rc_exp
