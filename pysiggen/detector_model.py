@@ -86,6 +86,9 @@ class Detector:
         self.siggen_interp_fn = None
         self.signal_peak_fn = None
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
+        self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*self.data_to_siggen_size_ratio, dtype=np.dtype('f4'), order="C" )
+
+
 
 ###########################################################################################################################
   def LoadFieldsGrad(self, fieldFileName,):
