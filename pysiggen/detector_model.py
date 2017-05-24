@@ -436,7 +436,7 @@ class Detector:
 
     #uh, ok, now lets re-release it?  but only the trapped charge??
 
-    wf = signal.lfilter([1., 0], [1., -release_time_exp], (wf-wf_trapped)))
+    wf = signal.lfilter([1., 0], [1., -release_time_exp], (wf-wf_trapped))
     wf *= (1- release_time_exp)
     wf += wf_trapped
 
