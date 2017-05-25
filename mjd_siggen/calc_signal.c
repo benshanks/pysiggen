@@ -2,9 +2,9 @@
  * Karin Lagergren
  *
  * This module contains the main interface to the signal calculation
- * code. 
+ * code.
  *
- * To use: 
+ * To use:
  * -- call signal_calc_init. This will initialize geometry, fields,
  *       drift velocities etc.
  * -- call get_signal
@@ -28,7 +28,7 @@
 #define HOLE_CHARGE 1.0
 #define ELECTRON_CHARGE -1.0
 /* the following is the diffusion coefficient for holes in Ge at 77K
-               at low field (~ 100 V/cm) 
+               at low field (~ 100 V/cm)
    the diffusion coefficient drops at higher fields, and higher temperatures
    see Jacoboni et al., Phys. Rev. B24, 2 (1981) 1014-1026.
    size sigma = sqrt(2Dt), t = time, D = mu*k*T/e
@@ -39,7 +39,7 @@
 
    we also convert (2Dt) from sigma-squared to FWHM-squared
 
-   for Si at 300K, 
+   for Si at 300K,
    mu_h = 450 cm^2/V/s, mu_e = 1500 cm^2/V/s, so
    D_h = 12 cm^2/s, D_e = 39 cm^2/s
 */
@@ -66,7 +66,7 @@
 
 /* prototypes for module-private functions*/
 //static int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup);
-//static float charge_trapping(vector dx, float q); //trapping
+static float charge_trapping( float q, MJD_Siggen_Setup* setup); //trapping
 
 /* signal_calc_init
    read setup from configuration file,
@@ -82,13 +82,13 @@ int signal_calc_init(char *config_file_name, MJD_Siggen_Setup *setup) {
   setup->ntsteps_out = setup->time_steps_calc /
     lrintf(setup->step_time_out/setup->step_time_calc);
   TELL_NORMAL("Will use %d time steps in calculations, each %.2f ns long;\n"
-	      "the output signals will have %d time steps, each %.2f ns long\n", 
+	      "the output signals will have %d time steps, each %.2f ns long\n",
 	      setup->time_steps_calc, setup->step_time_calc,
 	      setup->ntsteps_out, setup->step_time_out);
 
   TELL_NORMAL("Reading field data...\n");
   if (field_setup(setup) != 0) return -1;
-  
+
   if ((setup->dpath_e = (point *) malloc(setup->time_steps_calc*sizeof(point))) == NULL ||
       (setup->dpath_h = (point *) malloc(setup->time_steps_calc*sizeof(point))) == NULL) {
     error("Path malloc failed\n");
@@ -227,8 +227,10 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
   double repulsion_fact = 0.0, ds2, ds3, dv, ds_dt;
   int    ntsteps, i, t, n, collect2pc, low_field=0;
 
+  float q_mult = 1;
+
   new_pt = pt;
-  collect2pc = ((q > 0 && setup->impurity_z0 < 0) ||  // holes for p-type 
+  collect2pc = ((q > 0 && setup->impurity_z0 < 0) ||  // holes for p-type
 		(q < 0 && setup->impurity_z0 > 0));   // electrons for n-type
   /*
   if (q > 0) {
@@ -238,7 +240,8 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
   }
   */
   ntsteps = setup->time_steps_calc;
-  for (t = 0; drift_velocity(new_pt, q, &v, setup) >= 0; t++) { 
+  for (t = 0; drift_velocity(new_pt, q, &v, setup) >= 0; t++) {
+    //charge trapping
     if (q > 0) {
       setup->dpath_h[t] = new_pt;
     } else {
@@ -286,7 +289,7 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
 	  ds3 = (setup->final_charge_size*setup->final_charge_size *
 		 (setup->final_charge_size +
 		  3.0 * dv * setup->step_time_calc));         // FWHM^3 after repulsion
-	  setup->final_charge_size = sqrt(ds2 + pow(ds3, 0.6667)); 
+	  setup->final_charge_size = sqrt(ds2 + pow(ds3, 0.6667));
 	  TELL_CHATTY(" -> %.2f\n", setup->final_charge_size);
 	} else {
 	  setup->final_charge_size +=  ds_dt * setup->step_time_calc;  // effect of diff. + rep.
@@ -311,7 +314,7 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
       return -1;
     }
     TELL_CHATTY(" -> wp: %.4f\n", wpot);
-    if (t > 0) signal[t] += q*(wpot - wpot_old);
+    if (t > 0) signal[t] += q*q_mult*(wpot - wpot_old);
     // FIXME? Hack added by DCR to deal with undepleted point contact
     if (wpot >= 0.999 && (wpot - wpot_old) < 0.0002) {
       low_field = 1;
@@ -321,7 +324,7 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
 
     dx = vector_scale(v, setup->step_time_calc);
     new_pt = vector_add(new_pt, dx);
-    // q = charge_trapping(dx, q); //FIXME
+    q_mult = charge_trapping(q_mult, setup); //FIXME
   }
   if (t == 0) {
     TELL_CHATTY("The starting point %s is outside the field.\n",
@@ -332,7 +335,7 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
   if (low_field) {
     TELL_CHATTY("Too many time steps or low field; this may or may not be a problem.\n");
   } else {
-    TELL_CHATTY("Drifted to edge of field grid, point: %s q: %.2f\n", 
+    TELL_CHATTY("Drifted to edge of field grid, point: %s q: %.2f\n",
 		pt_to_str(tmpstr, MAX_LINE, new_pt), q);
 
     /* now we are outside the electric grid. figure out how much we must
@@ -345,7 +348,7 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
     }
     if (n == 0) n = 1; /* always drift at least one more step */
     // TELL_CHATTY(
-    TELL_NORMAL("q: %.1f t: %d n: %d ((%.2f %.2f %.2f)=>(%.2f %.2f %.2f))\n", 
+    TELL_NORMAL("q: %.1f t: %d n: %d ((%.2f %.2f %.2f)=>(%.2f %.2f %.2f))\n",
 		q, t, n, pt.x, pt.y, pt.z, new_pt.x, new_pt.y, new_pt.z);
 
     if (n + t >= ntsteps){
@@ -365,8 +368,8 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
     /*now drift the final n steps*/
     dx = vector_scale(v, setup->step_time_calc);
     for (i = 0; i < n; i++){
-      signal[i+t] += q*dwpot;
-      // q = charge_trapping(dx, q); //FIXME
+      signal[i+t] += q*q_mult*dwpot;
+      q_mult = charge_trapping(q_mult, setup); //FIXME
     }
   }
   TELL_CHATTY("q:%.2f pt: %s\n", q, pt_to_str(tmpstr, MAX_LINE, pt));
@@ -376,17 +379,20 @@ int make_signal(point pt, float *signal, float q, MJD_Siggen_Setup *setup) {
 }
 
 //FIXME -- placeholder function. Even parameter list is dodgy
-/*
-static float charge_trapping(vector dx, float q){
+
+static float charge_trapping(float q, MJD_Siggen_Setup* setup){
+  if (setup->trap_constant == 0){return q;}
+
+  q *= exp( -setup->step_time_calc/1000/setup->trap_constant );
   return q;
 }
-*/
+
 
 int rc_integrate(float *s_in, float *s_out, float tau, int time_steps){
   int   j;
   float s_in_old, s;  /* DCR: added so that it's okay to
 			 call this function with s_out == s_in */
-  
+
   if (tau < 1.0f) {
     for (j = time_steps-1; j > 0; j--) s_out[j] = s_in[j-1];
     s_out[0] = 0.0;

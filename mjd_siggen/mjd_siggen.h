@@ -155,6 +155,8 @@ typedef struct {
   float v_over_E;  // ratio of drift velocity to field ((mm/ns) / (V/cm))
   double final_charge_size;     // in mm
 
+  float trap_constant; // in us
+
 } MJD_Siggen_Setup;
 
 

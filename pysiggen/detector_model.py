@@ -50,6 +50,7 @@ class Detector:
 
         # print "Using model-based velocity numbers..."
         self.siggenInst.set_velocity_type(1)
+        self.siggenInst.set_trap_constant(0.)
 
         #stuff for field interp
         self.wp_function = None
@@ -378,16 +379,16 @@ class Detector:
     self.padded_siggen_data.fill(0.)
     self.padded_siggen_data[self.t0_padding:] += hole_wf[:]
 
-    #charge trapping (for holes only)
-    if trapType == "holesOnly" and self.trapping_rc is not None:
-        self.ApplyChargeTrapping(self.padded_siggen_data)
+    # #charge trapping (for holes only)
+    # if trapType == "holesOnly" and self.trapping_rc is not None:
+    #     self.ApplyChargeTrapping(self.padded_siggen_data)
 
     #add in the electron component
     self.padded_siggen_data[self.t0_padding:] += electron_wf[:]
 
-    #charge trapping (holes and electrons)
-    if trapType == "fullSignal" and self.trapping_rc is not None:
-        self.ApplyChargeTrapping(self.padded_siggen_data)
+    # #charge trapping (holes and electrons)
+    # if trapType == "fullSignal" and self.trapping_rc is not None:
+    #     self.ApplyChargeTrapping(self.padded_siggen_data)
 
     #scale wf for energy
     self.padded_siggen_data *= energy
@@ -415,42 +416,43 @@ class Detector:
     return sim_wf
 ###########################################################################################################################
 
-  def SetTrapping(self, trapping_rc, release_rc, period = 1E9):
-    trapping_rc = trapping_rc * 1E-6
-    self.trapping_rc_exp = np.exp(-1./period/trapping_rc)
+  def SetTrapping(self, trapping_rc, ):
+      self.siggenInst.set_trap_constant(trapping_rc)
+    # trapping_rc = trapping_rc * 1E-6
+    # self.trapping_rc_exp = np.exp(-1./period/trapping_rc)
+    #
+    # if release_rc is None:
+    #     self.release_time_exp = None
+    # else:
+    #     release_rc = release_rc * 1E-9
+    #     self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
 
-    if release_rc is None:
-        self.release_time_exp = None
-    else:
-        release_rc = release_rc * 1E-9
-        self.release_time_exp = np.exp(-1./period/release_rc) #30 ns
-
-  def ApplyChargeTrapping(self, wf):
-    wf_trapped = self.trapped_wf
-
-    trapping_rc_exp = self.trapping_rc_exp
-    release_time_exp = self.release_time_exp
-
-    charges_collected_idx = np.argmax(wf) + 1
-
-    wf_trapped[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
-    wf_trapped[charges_collected_idx:] = wf_trapped[charges_collected_idx-1]
-
-    if release_time_exp is None:
-        wf[:] = wf_trapped[:]
-        return wf
-
-    # trapped_charge[:charges_collected_idx]= signal.lfilter([1., 0], [1., -trapping_rc_exp], wf[:charges_collected_idx])
-    # trapped_charge[charges_collected_idx:] = trapped_charge[charges_collected_idx-1]
-    # trapped_charge *= (1-trapping_rc_exp)
-
-    #uh, ok, now lets re-release it?  but only the trapped charge??
-
-    wf = signal.lfilter([1., 0], [1., -release_time_exp], (wf-wf_trapped))
-    wf *= (1- release_time_exp)
-    wf += wf_trapped
-
-    return wf
+  # def ApplyChargeTrapping(self, wf):
+  #   wf_trapped = self.trapped_wf
+  #
+  #   trapping_rc_exp = self.trapping_rc_exp
+  #   release_time_exp = self.release_time_exp
+  #
+  #   charges_collected_idx = np.argmax(wf) + 1
+  #
+  #   wf_trapped[:charges_collected_idx]= signal.lfilter([1., -1], [1., -trapping_rc_exp], wf[:charges_collected_idx])
+  #   wf_trapped[charges_collected_idx:] = wf_trapped[charges_collected_idx-1]
+  #
+  #   if release_time_exp is None:
+  #       wf[:] = wf_trapped[:]
+  #       return wf
+  #
+  #   # trapped_charge[:charges_collected_idx]= signal.lfilter([1., 0], [1., -trapping_rc_exp], wf[:charges_collected_idx])
+  #   # trapped_charge[charges_collected_idx:] = trapped_charge[charges_collected_idx-1]
+  #   # trapped_charge *= (1-trapping_rc_exp)
+  #
+  #   #uh, ok, now lets re-release it?  but only the trapped charge??
+  #
+  #   wf = signal.lfilter([1., 0], [1., -release_time_exp], (wf-wf_trapped))
+  #   wf *= (1- release_time_exp)
+  #   wf += wf_trapped
+  #
+  #   return wf
 
   def ProcessWaveformByTimePointFine(self, siggen_wf, align_point, align_percent, outputLength, interpType="linear"):
     # print("FINE!")

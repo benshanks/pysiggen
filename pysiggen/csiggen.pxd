@@ -141,6 +141,7 @@ cdef extern from "mjd_siggen.h":
     float dv_dE;     # derivative of drift velocity with field ((mm/ns) / (V/cm))
     float v_over_E;  # ratio of drift velocity to field ((mm/ns) / (V/cm))
     double final_charge_size;     # in mm
+    float trap_constant; # in us
 
   int read_config(char *config_file_name, MJD_Siggen_Setup *setup);
 
