@@ -357,7 +357,6 @@ class Detector:
 
         t = max_idx + 1
         while amp_diff > 0.00001 and t < len(output_array):
-            print(np.exp( - self.time_step_size / release_constant ), amp_diff)
             new_amp_diff = amp_diff*np.exp( - self.time_step_size / release_constant );
             untrap = amp_diff - new_amp_diff
             output_array[t] = output_array[t-1] + untrap
