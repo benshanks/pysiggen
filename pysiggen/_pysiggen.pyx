@@ -220,8 +220,14 @@ cdef class Siggen:
   cpdef set_velocity_type(self, int veloType):
       self.fSiggenData.velocity_type = veloType;
 
-  cpdef set_trap_constant(self, float trap_constant):
+  cpdef set_trap_constant(self, double trap_constant):
       self.fSiggenData.trap_constant = trap_constant;
+  cpdef set_release_constant(self, double release_constant):
+      self.fSiggenData.release_constant = release_constant;
+  cpdef get_release_constant(self):
+    return self.fSiggenData.release_constant
+  cpdef get_initial_wpot(self):
+      return self.fSiggenData.initial_wpot
 
   cpdef set_hole_params(self, h_100_mu0, h_100_beta, h_100_e0, h_111_mu0, h_111_beta, h_111_e0):
 #      print "setting hole params"

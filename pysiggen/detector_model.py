@@ -343,6 +343,29 @@ class Detector:
     if calcFlag == -1:
       return None
 
+    #finish charge trapping if necessary
+    release_constant = self.siggenInst.get_release_constant()
+    if  release_constant > 0:
+        initial_wpot = self.siggenInst.get_initial_wpot()
+        if charge > 0:
+            expected_amp = (1-initial_wpot)
+        else:
+            expected_amp = initial_wpot
+        max_idx = np.argmax(output_array)
+        max_val = output_array[max_idx]
+        amp_diff = expected_amp - max_val
+
+        t = max_idx + 1
+        while amp_diff > 0.00001 and t < len(output_array):
+            print(np.exp( - self.time_step_size / release_constant ), amp_diff)
+            new_amp_diff = amp_diff*np.exp( - self.time_step_size / release_constant );
+            untrap = amp_diff - new_amp_diff
+            output_array[t] = output_array[t-1] + untrap
+            amp_diff = new_amp_diff
+            t+=1
+        if t<len(output_array):
+            output_array[t:] = output_array[t-1]
+
     return output_array
 ###########################################################################################################################
   def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2 =None,
@@ -416,8 +439,10 @@ class Detector:
     return sim_wf
 ###########################################################################################################################
 
-  def SetTrapping(self, trapping_rc, ):
+  def SetTrapping(self, trapping_rc, release_rc = 0.):
       self.siggenInst.set_trap_constant(trapping_rc)
+      self.siggenInst.set_release_constant(release_rc)
+
     # trapping_rc = trapping_rc * 1E-6
     # self.trapping_rc_exp = np.exp(-1./period/trapping_rc)
     #
