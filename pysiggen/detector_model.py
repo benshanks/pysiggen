@@ -504,6 +504,7 @@ class Detector:
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     temp_wf_sig= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf_sig)
     temp_wf_sig= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf_sig)
+    temp_wf_sig /= (1. + rc2_num_term) / (1. -self.rc2_for_tf)
 
     smax = np.amax(temp_wf_sig)
     if smax == 0:
