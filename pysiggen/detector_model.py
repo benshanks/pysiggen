@@ -69,6 +69,7 @@ class Detector:
         self.trapping_rc = None
         self.rc_int_exp = None #antialiasing rc
         self.t0_padding = t0_padding
+        self.end_padding = 1000
 
         #stuff for waveform interpolation
         #round here to fix floating point accuracy problem
@@ -78,7 +79,7 @@ class Detector:
 
         #Holders for wf simulation
         self.raw_siggen_data = np.zeros( self.num_steps, dtype=np.dtype('f4'), order="C" )
-        self.padded_siggen_data = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
+        self.padded_siggen_data = np.zeros( self.num_steps + self.t0_padding + self.end_padding, dtype=np.dtype('f4'), order="C" )
         self.trapped_wf = np.zeros( self.num_steps + self.t0_padding, dtype=np.dtype('f4'), order="C" )
 
         self.raw_charge_data = np.zeros( self.calc_length, dtype=np.dtype('f4'), order="C" )
@@ -325,7 +326,7 @@ class Detector:
     return self.raw_siggen_data
 
 ###########################################################################################################################
-  def MakeRawSiggenWaveform(self, r,phi,z, charge, output_array=None):
+  def MakeRawSiggenWaveform(self, r,phi,z, charge, output_array=None, doTrapping=False):
     #Has CALCULATION, not OUTPUT, step length (ie, usually 1ns instead of 10ns binning)
 
     if output_array is None:
@@ -344,26 +345,8 @@ class Detector:
       return None
 
     #finish charge trapping if necessary
-    release_constant = self.siggenInst.get_release_constant()
-    if  release_constant > 0:
-        initial_wpot = self.siggenInst.get_initial_wpot()
-        if charge > 0:
-            expected_amp = (1-initial_wpot)
-        else:
-            expected_amp = initial_wpot
-        max_idx = np.argmax(output_array)
-        max_val = output_array[max_idx]
-        amp_diff = expected_amp - max_val
-
-        t = max_idx + 1
-        while amp_diff > 0.00001 and t < len(output_array):
-            new_amp_diff = amp_diff*np.exp( - self.time_step_size / release_constant );
-            untrap = amp_diff - new_amp_diff
-            output_array[t] = output_array[t-1] + untrap
-            amp_diff = new_amp_diff
-            t+=1
-        if t<len(output_array):
-            output_array[t:] = output_array[t-1]
+    if doTrapping:
+        output_array = self.FinishChargeRelease(output_array, charge)
 
     return output_array
 ###########################################################################################################################
@@ -381,15 +364,22 @@ class Detector:
     if hole_wf is None:
       return None
 
+    self.padded_siggen_data.fill(0.)
+    self.padded_siggen_data[self.t0_padding: -self.end_padding] += hole_wf[:]
+    self.padded_siggen_data[-self.end_padding:] = hole_wf[-1]
+
+
+    #do charge untrapping (holes only)
+    self.FinishChargeRelease(self.padded_siggen_data, 1)
+
     #this is a comical mess of memory management
     self.raw_siggen_data.fill(0)
-    self.raw_siggen_data[:] = hole_wf[:]
 
     electron_wf = self.MakeRawSiggenWaveform(r, phi, z, -1)
     if electron_wf is  None:
       return None
 
-    return self.TurnChargesIntoSignal(electron_wf, self.raw_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp, interpType)
+    return self.TurnChargesIntoSignal(electron_wf, self.padded_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp, interpType)
 ###########################################################################################################################
   def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2=None,
                             alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear"):
@@ -398,15 +388,15 @@ class Detector:
     if hole_wf is None or electron_wf is None:
       return None
 
-    self.padded_siggen_data.fill(0.)
-    self.padded_siggen_data[self.t0_padding:] += hole_wf[:]
 
     # #charge trapping (for holes only)
     # if trapType == "holesOnly" and self.trapping_rc is not None:
     #     self.ApplyChargeTrapping(self.padded_siggen_data)
 
     #add in the electron component
-    self.padded_siggen_data[self.t0_padding:] += electron_wf[:]
+    self.padded_siggen_data[self.t0_padding:-self.end_padding] += electron_wf[:]
+    self.padded_siggen_data[-self.end_padding:] += electron_wf[-1]
+
 
     # #charge trapping (holes and electrons)
     # if trapType == "fullSignal" and self.trapping_rc is not None:
@@ -437,6 +427,26 @@ class Detector:
         sim_wf = self.ProcessWaveformByTimePointFine( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
     return sim_wf
 ###########################################################################################################################
+
+  def FinishChargeRelease(self, output_array, charge, period = 1E9):
+    release_constant = self.siggenInst.get_release_constant()
+    if  release_constant > 0:
+        initial_wpot = self.siggenInst.get_initial_wpot()
+        if charge > 0:
+            expected_amp = (1-initial_wpot)
+        else:
+            expected_amp = initial_wpot
+        max_idx = np.argmax(output_array)
+        max_val = output_array[max_idx]
+        amp_diff = expected_amp - max_val
+
+        release_rc = release_constant * 1E-9
+        release_time_exp = np.exp(-1./period/release_rc)
+
+        output_array[max_idx:] += signal.lfilter([1., 0], [1., -release_time_exp], amp_diff*np.ones(len(output_array[max_idx:]))) *(1-release_time_exp)
+
+
+    return output_array
 
   def SetTrapping(self, trapping_rc, release_rc = 0.):
       self.siggenInst.set_trap_constant(trapping_rc)
