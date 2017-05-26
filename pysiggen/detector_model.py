@@ -5,6 +5,7 @@ import numpy as np
 import copy, math
 import ctypes
 from scipy import  signal, interpolate, ndimage
+from scipy.stats import skewnorm
 import numbers
 
 from ._pysiggen import Siggen
