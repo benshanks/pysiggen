@@ -415,6 +415,12 @@ class Detector:
             p = h_smoothing2[1]
             window = signal.general_gaussian(np.int(np.ceil(sig)*4), sig=sig, p=p, )
             window /= np.sum(window)
+
+            pad = len(window)
+            wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
+            wf_pad= signal.convolve(wf_pad, window, 'same')
+            self.padded_siggen_data = wf_pad[pad:-pad]
+            
         elif smoothType=="skew":
             a = h_smoothing2[1]
             scale = h_smoothing2[0]
@@ -422,10 +428,10 @@ class Detector:
             max_time = np.ceil(skewnorm.ppf(1-1E-5, a, scale = scale))
             window = skewnorm.pdf(np.linspace(min_time,max_time, (max_time-min_time+1)), a, scale=scale)
 
-        pad = len(window)
-        wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
-        wf_pad= signal.convolve(wf_pad, window, 'same')
-        self.padded_siggen_data = wf_pad[pad:-pad]
+            pad = len(window)
+            wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
+            wf_pad= signal.convolve(wf_pad, window, 'same')
+            self.padded_siggen_data = wf_pad[pad:-pad]
 
     if alignPoint == "t0":
         sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
