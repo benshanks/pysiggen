@@ -6,6 +6,7 @@ import copy, math
 import ctypes
 from scipy import  signal, interpolate, ndimage
 from scipy.stats import skewnorm
+from scipy.special import erf
 import numbers
 
 from ._pysiggen import Siggen
@@ -420,13 +421,13 @@ class Detector:
             wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
             wf_pad= signal.convolve(wf_pad, window, 'same')
             self.padded_siggen_data = wf_pad[pad:-pad]
-            
+
         elif smoothType=="skew":
             a = h_smoothing2[1]
             scale = h_smoothing2[0]
-            min_time = np.floor(skewnorm.ppf(1E-5, a, scale = scale))
-            max_time = np.ceil(skewnorm.ppf(1-1E-5, a, scale = scale))
-            window = skewnorm.pdf(np.linspace(min_time,max_time, (max_time-min_time+1)), a, scale=scale)
+            # min_time = np.floor(skewnorm.ppf(1E-5, a, scale = scale))
+            # max_time = np.ceil(skewnorm.ppf(1-1E-5, a, scale = scale))
+            window = skew(np.linspace(-200,100,301),  a=a, w=scale )
 
             pad = len(window)
             wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
@@ -854,3 +855,12 @@ def getPointer(floatfloat):
 #  def __del__(self):
 #    del self.wp_pp
 #    del self.siggenInst
+def pdf(x):
+    return 1/np.sqrt(2*np.pi) * np.exp(-x**2/2)
+
+def cdf(x):
+    return (1 + erf(x/np.sqrt(2))) / 2
+
+def skew(x,e=0,w=1,a=0):
+    t = (x-e) / w
+    return 2 / w * pdf(t) * cdf(a*t)
