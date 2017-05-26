@@ -420,8 +420,7 @@ class Detector:
             scale = h_smoothing2[0]
             min_time = np.floor(skewnorm.ppf(1E-5, a, scale = scale))
             max_time = np.ceil(skewnorm.ppf(1-1E-5, a, scale = scale))
-            x = np.linspace(min_time,max_time, (max_time-min_time+1))
-            window = skewnorm.pdf(x, a, scale=scale)
+            window = skewnorm.pdf(np.linspace(min_time,max_time, (max_time-min_time+1)), a, scale=scale)
 
         pad = len(window)
         wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
