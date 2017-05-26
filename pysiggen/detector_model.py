@@ -351,7 +351,7 @@ class Detector:
     return output_array
 ###########################################################################################################################
   def MakeSimWaveform(self, r,phi,z,energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2 =None,
-                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear"):
+                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear", smoothType="gen_gaus"):
 
     self.raw_siggen_data.fill(0.)
     ratio = np.int(self.calc_length / self.num_steps)
@@ -379,10 +379,10 @@ class Detector:
     if electron_wf is  None:
       return None
 
-    return self.TurnChargesIntoSignal(electron_wf, self.padded_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp, interpType)
+    return self.TurnChargesIntoSignal(electron_wf, self.padded_siggen_data, energy, switchpoint,  numSamples, h_smoothing, h_smoothing2, alignPoint, trapType, doMaxInterp, interpType, smoothType)
 ###########################################################################################################################
   def TurnChargesIntoSignal(self, electron_wf, hole_wf, energy, switchpoint,  numSamples, h_smoothing = None, h_smoothing2=None,
-                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear"):
+                            alignPoint="t0", trapType="holesOnly", doMaxInterp=True, interpType="linear", smoothType="gen_gaus"):
       #this is for parallel computing, to allow hole and electron wfs to be separately calculated
 
     if hole_wf is None or electron_wf is None:
@@ -409,15 +409,23 @@ class Detector:
     if h_smoothing is not None:
       ndimage.filters.gaussian_filter1d(self.padded_siggen_data, h_smoothing, output=self.padded_siggen_data)
     if h_smoothing2 is not None:
-      sig = h_smoothing2[0]
-      p = h_smoothing2[1]
-      window = signal.general_gaussian(np.int(np.ceil(sig)*4), sig=sig, p=p, )
-      window /= np.sum(window)
+        if smoothType=="gen_gaus":
+            sig = h_smoothing2[0]
+            p = h_smoothing2[1]
+            window = signal.general_gaussian(np.int(np.ceil(sig)*4), sig=sig, p=p, )
+            window /= np.sum(window)
+        elif smoothType=="skew":
+            a = h_smoothing2[1]
+            scale = h_smoothing2[0]
+            min_time = np.floor(skewnorm.ppf(1E-5, a, scale = scale))
+            max_time = np.ceil(skewnorm.ppf(1-1E-5, a, scale = scale))
+            x = np.linspace(min_time,max_time, (max_time-min_time+1))
+            window = skewnorm.pdf(x, a, scale=scale)
 
-      pad = len(window)
-      wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
-      wf_pad= signal.convolve(wf_pad, window, 'same')
-      self.padded_siggen_data = wf_pad[pad:-pad]
+        pad = len(window)
+        wf_pad = np.pad(self.padded_siggen_data, (pad,pad), 'constant', constant_values=(0, self.padded_siggen_data[-1]))
+        wf_pad= signal.convolve(wf_pad, window, 'same')
+        self.padded_siggen_data = wf_pad[pad:-pad]
 
     if alignPoint == "t0":
         sim_wf = self.ProcessWaveform(self.padded_siggen_data, switchpoint, numSamples)
@@ -504,7 +512,7 @@ class Detector:
     rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
     temp_wf_sig= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf_sig)
     temp_wf_sig= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf_sig)
-    temp_wf_sig /= (1. + rc2_num_term) / (1. -self.rc2_for_tf)
+    temp_wf_sig /= ((1. + rc2_num_term) / (1. -self.rc2_for_tf))
 
     smax = np.amax(temp_wf_sig)
     if smax == 0:
