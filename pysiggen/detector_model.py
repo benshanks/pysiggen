@@ -92,6 +92,9 @@ class Detector:
         self.temp_wf = np.zeros( self.wf_output_length+2, dtype=np.dtype('f4'), order="C" )
         self.temp_wf_sig = np.zeros( (self.wf_output_length+2)*self.data_to_siggen_size_ratio, dtype=np.dtype('f4'), order="C" )
 
+        self.lopassType = "classic"
+        self.hipassType = "rc"
+
 
 
 ###########################################################################################################################
@@ -281,6 +284,11 @@ class Detector:
 
     self.rc1_frac = rc1_frac
 
+  def SetHiPassByZerosPoles(self, zeros, poles):
+      (self.hp_num, self.hp_den) = signal.zpk2tf(zeros, poles,1.)
+
+  def SetLoPassByZerosPoles(self, zero, pole_mag, pole_phi):
+      (self.lp_num, self.lp_den) = signal.zpk2tf([ zero ], [ pole_mag * np.exp(pole_phi*1j), pole_mag * np.exp(-pole_phi*1j) ],1.)
 
 ###########################################################################################################################
   def IsInDetector(self, r, phi, z):
@@ -439,7 +447,7 @@ class Detector:
     elif alignPoint == "max":
         sim_wf = self.ProcessWaveformByMax( self.padded_siggen_data, switchpoint, numSamples, doMaxInterp=doMaxInterp)
     elif isinstance(alignPoint, numbers.Number):
-        sim_wf = self.ProcessWaveformByTimePointFine( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType)
+        sim_wf = self.ProcessWaveformByTimePointFine( self.padded_siggen_data, switchpoint, alignPoint, numSamples, interpType=interpType,)
     return sim_wf
 ###########################################################################################################################
 
@@ -507,25 +515,50 @@ class Detector:
     # print("FINE!")
     # siggen_len = self.num_steps + self.t0_padding
     # siggen_len_output = np.int(siggen_len/self.data_to_siggen_size_ratio)
-    temp_wf_sig = self.temp_wf_sig
-    temp_wf_sig[0:len(siggen_wf)] = siggen_wf
-    temp_wf_sig[len(siggen_wf):] = siggen_wf[-1]
+    orig_temp_wf_sig = self.temp_wf_sig
+    orig_temp_wf_sig[0:len(siggen_wf)] = siggen_wf
+    orig_temp_wf_sig[len(siggen_wf):] = siggen_wf[-1]
+
+    temp_wf_sig = orig_temp_wf_sig
+    # temp_wf_sig = signal.resample_poly(orig_temp_wf_sig, 100, 20)
 
     # filter for the transfer function
-    temp_wf_sig= signal.lfilter(self.num, self.den, temp_wf_sig)
-    temp_wf_sig /= self.dc_gain
+    if self.lopassType == "classic":
+        temp_wf_sig= signal.lfilter(self.num, self.den, temp_wf_sig)
+        temp_wf_sig /= self.dc_gain
+        # print ("classic: ")
+        # print(self.num)
+        # print(self.den)
+    elif self.lopassType == "zeroPole":
+        # print ("zeropole: ")
+        # print(self.lp_num)
+        # print(self.lp_den)
+        temp_wf_sig= signal.lfilter(self.lp_num, self.lp_den, temp_wf_sig)
+        temp_wf_sig /= (np.sum(self.lp_num)/np.sum(self.lp_den))
+    elif self.lopassType == "lti":
+        (t, temp_wf_sig, x)= signal.lsim((self.lp_num, self.lp_den), temp_wf_sig, np.arange(0,len(temp_wf_sig))*self.time_step_size*1E-9 )
+        # (t, temp_wf_sig, x)= signal.lsim2((self.lp_num, self.lp_den), temp_wf_sig, T=np.arange(0,len(temp_wf_sig))*self.time_step_size*1E-9 )
 
+
+    if self.hipassType == "rc":
     #filter for the exponential decay
-    rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
-    temp_wf_sig= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf_sig)
-    temp_wf_sig= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf_sig)
-    temp_wf_sig /= ((1. + rc2_num_term) / (1. -self.rc2_for_tf))
+        # rc2_num_term = self.rc1_for_tf*self.rc1_frac - self.rc1_for_tf - self.rc2_for_tf*self.rc1_frac
+        num_term_1 = -1*(self.rc1_for_tf*(1 - self.rc1_frac )  + self.rc2_for_tf*self.rc1_frac + 1)
+        num_term_2 = self.rc1_for_tf*(1 - self.rc1_frac )  + self.rc2_for_tf*self.rc1_frac
+        temp_wf_sig = signal.lfilter([1., num_term_1, num_term_2], [1, -(self.rc1_for_tf + self.rc2_for_tf), self.rc1_for_tf * self.rc2_for_tf ], temp_wf_sig)
+        # temp_wf_sig= signal.lfilter([1., -1], [1., -self.rc1_for_tf], temp_wf_sig)
+        # temp_wf_sig= signal.lfilter([1., rc2_num_term], [1., -self.rc2_for_tf], temp_wf_sig)
+        # temp_wf_sig /= ((1. + rc2_num_term) / (1. -self.rc2_for_tf))
+    elif self.hipassType == "zeroPole":
+        temp_wf_sig= signal.lfilter(self.hp_num, self.hp_den, temp_wf_sig)
 
     smax = np.amax(temp_wf_sig)
     if smax == 0:
+    #   print("bad smax")
       return None
 
     #now downsample it
+    # temp_wf_sig = signal.resample_poly(temp_wf_sig, 20, 100)
     temp_wf = self.temp_wf
     temp_wf[:] = temp_wf_sig[::self.data_to_siggen_size_ratio]
 
@@ -534,6 +567,7 @@ class Detector:
     first_idx = np.searchsorted(alignarr, align_percent, side='left') - 1
 
     if first_idx+1 == len(alignarr) or first_idx <0:
+        # print("bad first idx")
         return None
 
     siggen_offset = (align_percent - alignarr[first_idx]) * (1) / (alignarr[first_idx+1] - alignarr[first_idx])
@@ -543,6 +577,7 @@ class Detector:
     start_idx = align_point_ceil - first_idx
 
     if start_idx <0:
+        # print("bad start idx")
         return None
 
     self.siggen_interp_fn = interpolate.interp1d(np.arange(len(temp_wf)), temp_wf, kind=interpType, copy="False", assume_sorted="True")
